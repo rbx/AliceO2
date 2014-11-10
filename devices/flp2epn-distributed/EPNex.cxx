@@ -29,7 +29,7 @@ void EPNex::Run()
 {
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
 
-  // boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
+  boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
   boost::thread heartbeatSender(boost::bind(&EPNex::sendHeartbeats, this));
 
   size_t idPartSize = 0;
@@ -43,7 +43,7 @@ void EPNex::Run()
 
     if (idPartSize > 0) {
       unsigned long* id = reinterpret_cast<unsigned long*>(idPart->GetData());
-      LOG(INFO) << "Received Event #" << *id;
+      // LOG(INFO) << "Received Event #" << *id;
 
       FairMQMessage* dataPart = fTransportFactory->CreateMessage();
       dataPartSize = fPayloadInputs->at(0)->Receive(dataPart);
@@ -56,8 +56,8 @@ void EPNex::Run()
     delete idPart;
   }
 
-  // rateLogger.interrupt();
-  // rateLogger.join();
+  rateLogger.interrupt();
+  rateLogger.join();
 
   heartbeatSender.interrupt();
   heartbeatSender.join();
