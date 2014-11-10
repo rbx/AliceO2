@@ -33,7 +33,7 @@ void FLPexSampler::Run()
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
   boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
 
-  // boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
+  boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
   boost::thread resetEventCounter(boost::bind(&FLPexSampler::ResetEventCounter, this));
 
   int sent = 0;
@@ -57,12 +57,12 @@ void FLPexSampler::Run()
       LOG(ERROR) << "Could not send message with event #" << eventId << " without blocking";
     }
 
-    LOG(INFO) << "Sent event #" << eventId;
+    // LOG(INFO) << "Sent event #" << eventId;
     if (eventId == ULONG_MAX) {
       eventId = 0;
     }
 
-    boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    // boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
 
     --fEventCounter;
 
@@ -77,8 +77,8 @@ void FLPexSampler::Run()
   delete baseMsg;
 
   try {
-    // rateLogger.interrupt();
-    // rateLogger.join();
+    rateLogger.interrupt();
+    rateLogger.join();
     resetEventCounter.interrupt();
     resetEventCounter.join();
   } catch(boost::thread_resource_error& e) {

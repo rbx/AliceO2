@@ -49,8 +49,8 @@ bool FLPex::updateIPHeartbeat(string reply)
       ptime storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, i);
 
       if (to_simple_string(storedHeartbeat) != "not-a-date-time") {
-        LOG(INFO) << "EPN " << i << " (" << reply << ")" << " last seen "
-                  << (currentHeartbeat - storedHeartbeat).total_milliseconds() << " ms ago.";
+        // LOG(INFO) << "EPN " << i << " (" << reply << ")" << " last seen "
+        //           << (currentHeartbeat - storedHeartbeat).total_milliseconds() << " ms ago.";
       }
       else {
         LOG(INFO) << "IP has no heartbeat associated. Adding heartbeat: " << currentHeartbeat;
@@ -70,7 +70,7 @@ void FLPex::Run()
 {
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
 
-  // boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
+  boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
 
   FairMQPoller* poller = fTransportFactory->CreatePoller(*fPayloadInputs);
 
@@ -115,7 +115,7 @@ void FLPex::Run()
         if (fPayloadInputs->at(2)->Receive(dataPart) > 0) {
           unsigned long* id = reinterpret_cast<unsigned long*>(idPart->GetData());
           eventId = *id;
-          LOG(INFO) << "Received Event #" << eventId;
+          // LOG(INFO) << "Received Event #" << eventId;
 
           fIdBuffer.push(idPart);
           fDataBuffer.push(dataPart);
@@ -134,7 +134,7 @@ void FLPex::Run()
         eventId = *(reinterpret_cast<unsigned long*>(fIdBuffer.front()->GetData()));
         direction = eventId % fNumOutputs;
 
-        LOG(INFO) << "Trying to send event " << eventId << " to EPN#" << direction << "...";
+        // LOG(INFO) << "Trying to send event " << eventId << " to EPN#" << direction << "...";
 
         currentHeartbeat = boost::posix_time::microsec_clock::local_time();
         storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, direction);
@@ -163,8 +163,8 @@ void FLPex::Run()
     } // if (poller->CheckInput(2))
   } // while (fState == RUNNING)
 
-  // rateLogger.interrupt();
-  // rateLogger.join();
+  rateLogger.interrupt();
+  rateLogger.join();
 
   FairMQDevice::Shutdown();
 
