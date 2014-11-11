@@ -77,12 +77,11 @@ void FLPex::Run()
   unsigned long eventId = 0;
   int direction = 0;
   int counter = 0;
-  int sent = 0;
   ptime currentHeartbeat;
   ptime storedHeartbeat;
 
   while (fState == RUNNING) {
-    poller->Poll(100);
+    poller->Poll(-1);
 
     // input 0 - commands
     if (poller->CheckInput(0)) {
@@ -134,7 +133,7 @@ void FLPex::Run()
         eventId = *(reinterpret_cast<unsigned long*>(fIdBuffer.front()->GetData()));
         direction = eventId % fNumOutputs;
 
-        // LOG(INFO) << "Trying to send event " << eventId << " to EPN#" << direction << "...";
+        // LOG(INFO) << "Sending event " << eventId << " to EPN#" << direction << "...";
 
         currentHeartbeat = boost::posix_time::microsec_clock::local_time();
         storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, direction);
@@ -143,14 +142,14 @@ void FLPex::Run()
         if (to_simple_string(storedHeartbeat) != "not-a-date-time" ||
             (currentHeartbeat - storedHeartbeat).total_milliseconds() < fHeartbeatTimeoutInMs) {
           fPayloadOutputs->at(direction)->Send(fIdBuffer.front(), "snd-more");
-          sent = fPayloadOutputs->at(direction)->Send(fDataBuffer.front(), "no-block");
-          if (sent == 0) {
+          if (fPayloadOutputs->at(direction)->Send(fDataBuffer.front(), "no-block") == 0) {
             LOG(ERROR) << "Could not send message with event #" << eventId << " without blocking";
           }
           fIdBuffer.pop();
           fDataBuffer.pop();
         } else { // if the heartbeat is too old, receive the data and discard it.
-          LOG(WARN) << "Heartbeat too old for, discarding message.";
+          LOG(WARN) << "Heartbeat too old for EPN#" << direction << ", discarding message.";
+          LOG(WARN) << (currentHeartbeat - storedHeartbeat).total_milliseconds();
           fIdBuffer.pop();
           fDataBuffer.pop();
         }

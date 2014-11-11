@@ -31,47 +31,50 @@ FLPexSampler::~FLPexSampler()
 void FLPexSampler::Run()
 {
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
-  boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
 
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
   boost::thread resetEventCounter(boost::bind(&FLPexSampler::ResetEventCounter, this));
 
-  int sent = 0;
-  unsigned long eventId = 0;
+  unsigned long eventId = 1;
+  // int numEvents = 1024;
 
   void* buffer = operator new[](fEventSize);
   FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
 
   while (fState == RUNNING) {
-    FairMQMessage* idPart = fTransportFactory->CreateMessage(sizeof(unsigned long));
-    memcpy(idPart->GetData(), &eventId, sizeof(unsigned long));
+    // if (eventId <= numEvents) {
+      FairMQMessage* idPart = fTransportFactory->CreateMessage(sizeof(unsigned long));
+      memcpy(idPart->GetData(), &eventId, sizeof(unsigned long));
 
-    fPayloadOutputs->at(0)->Send(idPart, "snd-more");
-    ++eventId;
+      fPayloadOutputs->at(0)->Send(idPart, "snd-more");
+      ++eventId;
 
-    FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-    dataPart->Copy(baseMsg);
+      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
+      dataPart->Copy(baseMsg);
 
-    sent = fPayloadOutputs->at(0)->Send(dataPart, "no-block");
-    if (sent == 0) {
-      LOG(ERROR) << "Could not send message with event #" << eventId << " without blocking";
-    }
+      if (fPayloadOutputs->at(0)->Send(dataPart, "no-block") == 0) {
+        LOG(ERROR) << "Could not send message with event #" << eventId << " without blocking";
+      }
 
-    // LOG(INFO) << "Sent event #" << eventId;
-    if (eventId == ULONG_MAX) {
-      eventId = 0;
-    }
+      // LOG(INFO) << "Sent event #" << eventId;
+      // if (eventId == numEvents) {
+      //   LOG(INFO) << "Sent " << numEvents << " events";
+      // }
 
-    // boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+      // boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 
-    --fEventCounter;
+      --fEventCounter;
 
-    while (fEventCounter == 0) {
-      boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-    }
+      while (fEventCounter == 0) {
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+      }
 
-    delete idPart;
-    delete dataPart;
+      delete idPart;
+      delete dataPart;
+    // } else {
+    //   boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    // }
   }
 
   delete baseMsg;

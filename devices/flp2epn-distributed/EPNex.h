@@ -9,6 +9,7 @@
 #define ALICEO2_DEVICES_EPNEX_H_
 
 #include <string>
+#include <unordered_map>
 
 #include "FairMQDevice.h"
 
@@ -25,6 +26,8 @@ class EPNex : public FairMQDevice
     EPNex();
     virtual ~EPNex();
 
+    void PrintBuffer(std::unordered_map<int,int> &eventBuffer);
+
     virtual void SetProperty(const int key, const std::string& value, const int slot = 0);
     virtual std::string GetProperty(const int key, const std::string& default_ = "", const int slot = 0);
     virtual void SetProperty(const int key, const int value, const int slot = 0);
@@ -35,6 +38,7 @@ class EPNex : public FairMQDevice
     void sendHeartbeats();
 
     int fHeartbeatIntervalInMs;
+    std::unordered_map<int,int> fEventBuffer;
 };
 
 } // namespace Devices
