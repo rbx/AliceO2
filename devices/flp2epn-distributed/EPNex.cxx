@@ -17,12 +17,34 @@ using namespace std;
 using namespace AliceO2::Devices;
 
 EPNex::EPNex() :
-  fHeartbeatIntervalInMs(5000)
+  fHeartbeatIntervalInMs(3000)
 {
 }
 
 EPNex::~EPNex()
 {
+}
+
+void EPNex::PrintBuffer(unordered_map<int,int> &eventBuffer)
+{
+  int size = eventBuffer.size();
+  string header = "===== ";
+
+  for (int i = 1; i <= fNumOutputs; ++i) {
+    stringstream out;
+    out << i % 10;
+    header += out.str();
+    //i > 9 ? header += " " : header += "  ";
+  }
+  LOG(INFO) << header;
+
+  for (unordered_map<int,int>::iterator it = eventBuffer.begin(); it != eventBuffer.end(); ++it) {
+    string stars = "";
+    for (int j = 1; j <= it->second; ++j) {
+      stars += "*";
+    }
+    LOG(INFO) << setw(4) << it->first << ": " << stars;
+  }
 }
 
 void EPNex::Run()
@@ -32,23 +54,34 @@ void EPNex::Run()
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
   boost::thread heartbeatSender(boost::bind(&EPNex::sendHeartbeats, this));
 
-  size_t idPartSize = 0;
-  size_t dataPartSize = 0;
+  // Currently number of outputs equals number of FLPs, each output = heartbeat channel.
+  // This may need to be changed in future.
+  const int numFLPs = fNumOutputs; 
 
   while (fState == RUNNING) {
     // Receive payload
     FairMQMessage* idPart = fTransportFactory->CreateMessage();
 
-    idPartSize = fPayloadInputs->at(0)->Receive(idPart);
-
-    if (idPartSize > 0) {
+    if (fPayloadInputs->at(0)->Receive(idPart) > 0) {
       unsigned long* id = reinterpret_cast<unsigned long*>(idPart->GetData());
       // LOG(INFO) << "Received Event #" << *id;
 
-      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-      dataPartSize = fPayloadInputs->at(0)->Receive(dataPart);
+      if (fEventBuffer.find(*id) == fEventBuffer.end()) {
+        fEventBuffer[*id] = 1;
+        PrintBuffer(fEventBuffer);
+      } else {
+        ++fEventBuffer[*id];
+        PrintBuffer(fEventBuffer);
+        if (fEventBuffer[*id] == numFLPs) {
+          // LOG(INFO) << "collected " << numFLPs << " parts of event #" << *id << ", processing...";
+          fEventBuffer.erase(*id);
+          // LOG(INFO) << "size of eventBuffer: " << eventBuffer.size();
+        }
+      }
 
-      if (dataPartSize > 0) {
+      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
+
+      if (fPayloadInputs->at(0)->Receive(dataPart) > 0) {
         // ... do something with data here ...
       }
       delete dataPart;

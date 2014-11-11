@@ -31,7 +31,7 @@ FLPexSampler::~FLPexSampler()
 void FLPexSampler::Run()
 {
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
-  boost::this_thread::sleep(boost::posix_time::milliseconds(5000));
+  boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
 
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
   boost::thread resetEventCounter(boost::bind(&FLPexSampler::ResetEventCounter, this));
@@ -62,7 +62,7 @@ void FLPexSampler::Run()
       eventId = 0;
     }
 
-    // boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+    // boost::this_thread::sleep(boost::posix_time::milliseconds(200));
 
     --fEventCounter;
 

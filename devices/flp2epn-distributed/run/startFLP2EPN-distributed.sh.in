@@ -5,7 +5,7 @@ buffSize="2" # zeromq high-water mark is in messages
 
 SAMPLER="testFLPSampler"
 SAMPLER+=" --id 101"
-SAMPLER+=" --event-size 100000000"
+SAMPLER+=" --event-size 1000000"
 SAMPLER+=" --event-rate 100"
 SAMPLER+=" --output-socket-type pub --output-buff-size $buffSize --output-method bind --output-address tcp://*:5550"
 xterm -geometry 80x25+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SAMPLER &
