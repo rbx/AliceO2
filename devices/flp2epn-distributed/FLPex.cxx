@@ -81,7 +81,7 @@ void FLPex::Run()
   ptime storedHeartbeat;
 
   while (fState == RUNNING) {
-    poller->Poll(100);
+    poller->Poll(-1);
 
     // input 0 - commands
     if (poller->CheckInput(0)) {

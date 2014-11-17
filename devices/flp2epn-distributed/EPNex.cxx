@@ -13,6 +13,7 @@
 #include "FairMQLogger.h"
 
 using namespace std;
+using boost::posix_time::ptime;
 
 using namespace AliceO2::Devices;
 
@@ -59,6 +60,8 @@ void EPNex::Run()
   const int numFLPs = fNumOutputs; 
 
   unsigned long fullEvents = 0;
+  ptime time_start;
+  ptime time_end;
 
   while (fState == RUNNING) {
     // Receive payload
@@ -70,18 +73,24 @@ void EPNex::Run()
 
       if (fEventBuffer.find(*id) == fEventBuffer.end()) {
         fEventBuffer[*id] = 1;
-        PrintBuffer(fEventBuffer);
+        // PrintBuffer(fEventBuffer);
       } else {
         ++fEventBuffer[*id];
-        PrintBuffer(fEventBuffer);
+        // PrintBuffer(fEventBuffer);
         if (fEventBuffer[*id] == numFLPs) {
           // LOG(INFO) << "collected " << numFLPs << " parts of event #" << *id << ", processing...";
-          LOG(INFO) << "# of full events: " << ++fullEvents;
+          // LOG(INFO) << "# of full events: " << ++fullEvents;
+          ++fullEvents;
+          if (fullEvents == 1) {
+            time_start = boost::posix_time::microsec_clock::local_time();
+          } else if (fullEvents == 100) {
+            time_end = boost::posix_time::microsec_clock::local_time();
+            LOG(WARN) << "Received 100 events in " << (time_end - time_start).total_milliseconds() << " milliseconds.";
+          }
           fEventBuffer.erase(*id);
           // LOG(INFO) << "size of eventBuffer: " << eventBuffer.size();
         }
       }
-
 
       FairMQMessage* dataPart = fTransportFactory->CreateMessage();
 
