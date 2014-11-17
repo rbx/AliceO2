@@ -58,8 +58,8 @@ void FLPexSampler::Run()
     }
 
     // LOG(INFO) << "Sent event #" << eventId;
-    if (eventId == ULONG_MAX) {
-      eventId = 0;
+    if (eventId == 9999) {
+      break;
     }
 
     // boost::this_thread::sleep(boost::posix_time::milliseconds(200));

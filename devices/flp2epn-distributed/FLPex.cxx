@@ -138,8 +138,6 @@ void FLPex::Run()
         currentHeartbeat = boost::posix_time::microsec_clock::local_time();
         storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, direction);
 
-        LOG(WARN) << currentHeartbeat << " - " << storedHeartbeat << " = " << (currentHeartbeat - storedHeartbeat).total_milliseconds();
-
         // if the heartbeat from the corresponding EPN is within timeout period, send the data.
         if (to_simple_string(storedHeartbeat) != "not-a-date-time" ||
             (currentHeartbeat - storedHeartbeat).total_milliseconds() < fHeartbeatTimeoutInMs) {

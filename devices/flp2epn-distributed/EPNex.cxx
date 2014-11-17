@@ -58,6 +58,8 @@ void EPNex::Run()
   // This may need to be changed in future.
   const int numFLPs = fNumOutputs; 
 
+  unsigned long fullEvents = 0;
+
   while (fState == RUNNING) {
     // Receive payload
     FairMQMessage* idPart = fTransportFactory->CreateMessage();
@@ -74,10 +76,12 @@ void EPNex::Run()
         PrintBuffer(fEventBuffer);
         if (fEventBuffer[*id] == numFLPs) {
           // LOG(INFO) << "collected " << numFLPs << " parts of event #" << *id << ", processing...";
+          LOG(INFO) << "# of full events: " << ++fullEvents;
           fEventBuffer.erase(*id);
           // LOG(INFO) << "size of eventBuffer: " << eventBuffer.size();
         }
       }
+
 
       FairMQMessage* dataPart = fTransportFactory->CreateMessage();
 
