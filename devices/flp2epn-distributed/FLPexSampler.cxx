@@ -37,6 +37,7 @@ void FLPexSampler::Run()
     boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
 
     if (sent == 0) {
+      LOG(INFO) << "sending start signal!";
       FairMQMessage* startSignal = fTransportFactory->CreateMessage(signalValue);
       sent = fPayloadOutputs->at(0)->Send(startSignal);
     }

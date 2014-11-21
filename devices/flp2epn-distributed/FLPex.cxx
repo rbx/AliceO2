@@ -235,6 +235,12 @@ void FLPex::SetProperty(const int key, const int value, const int slot/*= 0*/)
     case SendOffset:
       fSendOffset = value;
       break;
+    case EventSize:
+      fEventSize = value;
+      break;
+    case EventRate:
+      fEventRate = value;
+      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -248,6 +254,10 @@ int FLPex::GetProperty(const int key, const int default_/*= 0*/, const int slot/
       return fHeartbeatTimeoutInMs;
     case SendOffset:
       return fSendOffset;
+    case EventSize:
+      return fEventSize;
+    case EventRate:
+      return fEventRate;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }
