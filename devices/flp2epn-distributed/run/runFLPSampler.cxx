@@ -158,7 +158,7 @@ int main(int argc, char** argv)
   sampler.ChangeState(FLPexSampler::INIT);
 
   sampler.SetProperty(FLPexSampler::OutputSocketType, options.outputSocketType);
-  sampler.SetProperty(FLPexSampler::OutputRcvBufSize, options.outputBufSize);
+  sampler.SetProperty(FLPexSampler::OutputSndBufSize, options.outputBufSize);
   sampler.SetProperty(FLPexSampler::OutputMethod, options.outputMethod);
   sampler.SetProperty(FLPexSampler::OutputAddress, options.outputAddress);
 

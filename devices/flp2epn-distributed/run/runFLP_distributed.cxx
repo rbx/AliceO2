@@ -215,7 +215,7 @@ int main(int argc, char** argv)
 
   for (int i = 0; i < options.numOutputs; ++i) {
     flp.SetProperty(FLPex::OutputSocketType, options.outputSocketType.at(i), i);
-    flp.SetProperty(FLPex::OutputRcvBufSize, options.outputBufSize.at(i), i);
+    flp.SetProperty(FLPex::OutputSndBufSize, options.outputBufSize.at(i), i);
     flp.SetProperty(FLPex::OutputMethod, options.outputMethod.at(i), i);
     flp.SetProperty(FLPex::OutputAddress, options.outputAddress.at(i), i);
     flp.SetProperty(FLPex::LogOutputRate, options.logOutputRate.at(i), i);

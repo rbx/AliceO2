@@ -193,7 +193,7 @@ int main(int argc, char** argv)
   epn.ChangeState(EPNex::INIT);
 
   epn.SetProperty(EPNex::InputSocketType, options.inputSocketType);
-  epn.SetProperty(EPNex::InputSndBufSize, options.inputBufSize);
+  epn.SetProperty(EPNex::InputRcvBufSize, options.inputBufSize);
   epn.SetProperty(EPNex::InputMethod, options.inputMethod);
   epn.SetProperty(EPNex::InputAddress, options.inputAddress);
   epn.SetProperty(EPNex::LogInputRate, options.logInputRate);
@@ -201,7 +201,7 @@ int main(int argc, char** argv)
   for (int i = 0; i < options.numOutputs; ++i)
   {
     epn.SetProperty(EPNex::OutputSocketType, options.outputSocketType.at(i), i);
-    epn.SetProperty(EPNex::OutputRcvBufSize, options.outputBufSize.at(i), i);
+    epn.SetProperty(EPNex::OutputSndBufSize, options.outputBufSize.at(i), i);
     epn.SetProperty(EPNex::OutputMethod, options.outputMethod.at(i), i);
     epn.SetProperty(EPNex::OutputAddress, options.outputAddress.at(i), i);
     epn.SetProperty(EPNex::LogOutputRate, options.logOutputRate.at(i), i);

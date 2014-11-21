@@ -22,7 +22,7 @@ class FLPex : public FairMQDevice
 {
   public:
     enum {
-      OutputHeartbeat  = FairMQDevice::Last,
+      OutputHeartbeat = FairMQDevice::Last,
       HeartbeatTimeoutInMs,
       NumFLPs,
       SendOffset,
