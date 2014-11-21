@@ -49,6 +49,8 @@ static void s_catch_signals (void)
 typedef struct DeviceOptions
 {
   string id;
+  int eventSize;
+  int eventRate;
   int ioThreads;
   int numInputs;
   int numOutputs;
@@ -75,6 +77,8 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   bpo::options_description desc("Options");
   desc.add_options()
     ("id", bpo::value<string>()->required(), "Device ID")
+    ("event-size", bpo::value<int>()->default_value(1000), "Event size in bytes")
+    ("event-rate", bpo::value<int>()->default_value(0), "Event rate limit in maximum number of events per second")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
     ("num-inputs", bpo::value<int>()->required(), "Number of FLP input sockets")
     ("num-outputs", bpo::value<int>()->required(), "Number of FLP output sockets")
@@ -104,6 +108,14 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
   if (vm.count("id")) {
     _options->id = vm["id"].as<string>();
+  }
+
+  if (vm.count("event-size")) {
+    _options->eventSize = vm["event-size"].as<int>();
+  }
+
+  if (vm.count("event-rate")) {
+    _options->eventRate = vm["event-rate"].as<int>();
   }
 
   if (vm.count("io-threads")) {
@@ -197,6 +209,8 @@ int main(int argc, char** argv)
 
   flp.SetProperty(FLPex::Id, options.id);
   flp.SetProperty(FLPex::NumIoThreads, options.ioThreads);
+  flp.SetProperty(FLPex::EventSize, options.eventSize);
+  flp.SetProperty(FLPex::EventRate, options.eventRate);
 
   flp.SetProperty(FLPex::NumInputs, options.numInputs);
   flp.SetProperty(FLPex::NumOutputs, options.numOutputs);
@@ -215,7 +229,7 @@ int main(int argc, char** argv)
 
   for (int i = 0; i < options.numOutputs; ++i) {
     flp.SetProperty(FLPex::OutputSocketType, options.outputSocketType.at(i), i);
-    flp.SetProperty(FLPex::OutputRcvBufSize, options.outputBufSize.at(i), i);
+    flp.SetProperty(FLPex::OutputSndBufSize, options.outputBufSize.at(i), i);
     flp.SetProperty(FLPex::OutputMethod, options.outputMethod.at(i), i);
     flp.SetProperty(FLPex::OutputAddress, options.outputAddress.at(i), i);
     flp.SetProperty(FLPex::LogOutputRate, options.logOutputRate.at(i), i);

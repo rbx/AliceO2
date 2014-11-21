@@ -22,16 +22,19 @@ class FLPex : public FairMQDevice
 {
   public:
     enum {
-      OutputHeartbeat  = FairMQDevice::Last,
+      OutputHeartbeat = FairMQDevice::Last,
       HeartbeatTimeoutInMs,
       NumFLPs,
       SendOffset,
+      EventRate,
+      EventSize,
       Last
     };
 
     FLPex();
     virtual ~FLPex();
 
+    void ResetEventCounter();
     virtual void SetProperty(const int key, const std::string& value, const int slot = 0);
     virtual std::string GetProperty(const int key, const std::string& default_ = "", const int slot = 0);
     virtual void SetProperty(const int key, const int value, const int slot = 0);
@@ -51,6 +54,10 @@ class FLPex : public FairMQDevice
     std::queue<FairMQMessage*> fIdBuffer;
     std::queue<FairMQMessage*> fDataBuffer;
     vector<boost::posix_time::ptime> fOutputHeartbeat;
+
+    int fEventSize;
+    int fEventRate;
+    int fEventCounter;
 };
 
 } // namespace Devices

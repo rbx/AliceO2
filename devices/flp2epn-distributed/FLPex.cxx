@@ -23,6 +23,9 @@ using namespace AliceO2::Devices;
 FLPex::FLPex()
   : fHeartbeatTimeoutInMs(20000)
   , fSendOffset(0)
+  , fEventSize(10000)
+  , fEventRate(1)
+  , fEventCounter(0)
 {
 }
 
@@ -71,17 +74,27 @@ void FLPex::Run()
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
 
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
+  boost::thread resetEventCounter(boost::bind(&FLPex::ResetEventCounter, this));
 
   FairMQPoller* poller = fTransportFactory->CreatePoller(*fPayloadInputs);
 
   unsigned long eventId = 0;
+
+  // base buffer, to be copied from for every payload
+  void* buffer = operator new[](fEventSize);
+  FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
+
+  bool started = false;
   int direction = 0;
   int counter = 0;
   ptime currentHeartbeat;
   ptime storedHeartbeat;
 
+  // wait for the start signal before starting any work.
+  LOG(INFO) << "waiting for the start signal...";
+
   while (fState == RUNNING) {
-    poller->Poll(-1);
+    poller->Poll(0);
 
     // input 0 - commands
     if (poller->CheckInput(0)) {
@@ -106,33 +119,30 @@ void FLPex::Run()
       delete heartbeatMsg;
     }
 
-    // input 2 - data from Sampler
+    // input 1 - heartbeats
     if (poller->CheckInput(2)) {
-      FairMQMessage* idPart = fTransportFactory->CreateMessage();
-      if (fPayloadInputs->at(2)->Receive(idPart) > 0) {
-        FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-        if (fPayloadInputs->at(2)->Receive(dataPart) > 0) {
-          unsigned long* id = reinterpret_cast<unsigned long*>(idPart->GetData());
-          eventId = *id;
-          // LOG(INFO) << "Received Event #" << eventId;
+      FairMQMessage* startSignal = fTransportFactory->CreateMessage();
+      fPayloadInputs->at(2)->Receive(startSignal);
+      delete startSignal;
+      LOG(INFO) << "starting!";
+      started = true;
+    }
 
-          fIdBuffer.push(idPart);
-          fDataBuffer.push(dataPart);
-        } else {
-          LOG(ERROR) << "Could not receive data part.";
-          delete dataPart;
-          continue;
-        }
-      } else {
-        LOG(ERROR) << "Could not receive id part.";
-        delete idPart;
-        continue;
-      }
+    if (started) {
+      // for which EPN is the message?
+      direction = eventId % fNumOutputs;
+
+      // initialize and store id msg part in the buffer.
+      FairMQMessage* idPart = fTransportFactory->CreateMessage(sizeof(unsigned long));
+      memcpy(idPart->GetData(), &eventId, sizeof(unsigned long));
+      fIdBuffer.push(idPart);
+
+      // initialize and store data msg part in the buffer.
+      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
+      dataPart->Copy(baseMsg);
+      fDataBuffer.push(dataPart);
 
       if (counter == fSendOffset) {
-        eventId = *(reinterpret_cast<unsigned long*>(fIdBuffer.front()->GetData()));
-        direction = eventId % fNumOutputs;
-
         // LOG(INFO) << "Sending event " << eventId << " to EPN#" << direction << "...";
 
         currentHeartbeat = boost::posix_time::microsec_clock::local_time();
@@ -147,7 +157,7 @@ void FLPex::Run()
           }
           fIdBuffer.pop();
           fDataBuffer.pop();
-        } else { // if the heartbeat is too old, receive the data and discard it.
+        } else { // if the heartbeat is too old, discard the data.
           LOG(WARN) << "Heartbeat too old for EPN#" << direction << ", discarding message.";
           LOG(WARN) << (currentHeartbeat - storedHeartbeat).total_milliseconds();
           fIdBuffer.pop();
@@ -159,9 +169,23 @@ void FLPex::Run()
       } else {
         LOG(ERROR) << "Counter larger than offset, something went wrong...";
       }
-    } // if (poller->CheckInput(2))
+
+      ++eventId;
+
+      --fEventCounter;
+
+      while (fEventCounter == 0) {
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
+      }
+
+    }
+
   } // while (fState == RUNNING)
 
+  delete baseMsg;
+
+  resetEventCounter.interrupt();
+  resetEventCounter.join();
   rateLogger.interrupt();
   rateLogger.join();
 
@@ -171,6 +195,18 @@ void FLPex::Run()
   boost::lock_guard<boost::mutex> lock(fRunningMutex);
   fRunningFinished = true;
   fRunningCondition.notify_one();
+}
+
+void FLPex::ResetEventCounter()
+{
+  while (true) {
+    try {
+      fEventCounter = fEventRate / 100;
+      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
+    } catch (boost::thread_interrupted&) {
+      break;
+    }
+  }
 }
 
 void FLPex::SetProperty(const int key, const string& value, const int slot/*= 0*/)
@@ -199,6 +235,12 @@ void FLPex::SetProperty(const int key, const int value, const int slot/*= 0*/)
     case SendOffset:
       fSendOffset = value;
       break;
+    case EventSize:
+      fEventSize = value;
+      break;
+    case EventRate:
+      fEventRate = value;
+      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -212,6 +254,10 @@ int FLPex::GetProperty(const int key, const int default_/*= 0*/, const int slot/
       return fHeartbeatTimeoutInMs;
     case SendOffset:
       return fSendOffset;
+    case EventSize:
+      return fEventSize;
+    case EventRate:
+      return fEventRate;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }

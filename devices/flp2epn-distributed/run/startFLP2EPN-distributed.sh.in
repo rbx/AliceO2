@@ -5,20 +5,20 @@ buffSize="2" # zeromq high-water mark is in messages
 
 SAMPLER="testFLPSampler"
 SAMPLER+=" --id 101"
-SAMPLER+=" --event-size 1000000"
-SAMPLER+=" --event-rate 100"
 SAMPLER+=" --output-socket-type pub --output-buff-size $buffSize --output-method bind --output-address tcp://*:5550"
 xterm -geometry 80x25+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SAMPLER &
 
 FLP0="testFLP_distributed"
 FLP0+=" --id FLP0"
+FLP0+=" --event-size 10000000"
+FLP0+=" --event-rate 100"
 FLP0+=" --num-inputs 3"
 FLP0+=" --num-outputs 3"
 FLP0+=" --heartbeat-timeout 20000"
 FLP0+=" --send-offset 0"
 FLP0+=" --input-socket-type sub --input-buff-size $buffSize --input-method bind --input-address tcp://*:5600 --log-input-rate 0" # command
 FLP0+=" --input-socket-type sub --input-buff-size $buffSize --input-method bind --input-address tcp://127.0.0.1:5580 --log-input-rate 0" # heartbeat
-FLP0+=" --input-socket-type sub --input-buff-size $buffSize --input-method connect --input-address tcp://127.0.0.1:5550 --log-input-rate 1" # data
+FLP0+=" --input-socket-type sub --input-buff-size $buffSize --input-method connect --input-address tcp://127.0.0.1:5550 --log-input-rate 0" # start signal
 FLP0+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5560 --log-output-rate 1"
 FLP0+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5561 --log-output-rate 1"
 FLP0+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5562 --log-output-rate 1"
@@ -26,13 +26,15 @@ xterm -geometry 80x25+500+0 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP0 &
 
 FLP1="testFLP_distributed"
 FLP1+=" --id FLP1"
+FLP1+=" --event-size 10000000"
+FLP1+=" --event-rate 100"
 FLP1+=" --num-inputs 3"
 FLP1+=" --num-outputs 3"
 FLP1+=" --heartbeat-timeout 20000"
 FLP1+=" --send-offset 1"
 FLP1+=" --input-socket-type sub --input-buff-size $buffSize --input-method bind --input-address tcp://*:5601 --log-input-rate 0" # command
 FLP1+=" --input-socket-type sub --input-buff-size $buffSize --input-method bind --input-address tcp://127.0.0.1:5581 --log-input-rate 0" # heartbeat
-FLP1+=" --input-socket-type sub --input-buff-size $buffSize --input-method connect --input-address tcp://127.0.0.1:5550 --log-input-rate 1" # data
+FLP1+=" --input-socket-type sub --input-buff-size $buffSize --input-method connect --input-address tcp://127.0.0.1:5550 --log-input-rate 0" # start signal
 FLP1+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5560 --log-output-rate 1"
 FLP1+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5561 --log-output-rate 1"
 FLP1+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5562 --log-output-rate 1"
@@ -40,13 +42,15 @@ xterm -geometry 80x25+500+350 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP1 &
 
 FLP2="testFLP_distributed"
 FLP2+=" --id FLP2"
+FLP2+=" --event-size 10000000"
+FLP2+=" --event-rate 100"
 FLP2+=" --num-inputs 3"
 FLP2+=" --num-outputs 3"
 FLP2+=" --heartbeat-timeout 20000"
 FLP2+=" --send-offset 2"
 FLP2+=" --input-socket-type sub --input-buff-size $buffSize --input-method bind --input-address tcp://*:5602 --log-input-rate 0" # command
 FLP2+=" --input-socket-type sub --input-buff-size $buffSize --input-method bind --input-address tcp://127.0.0.1:5582 --log-input-rate 0" # heartbeat
-FLP2+=" --input-socket-type sub --input-buff-size $buffSize --input-method connect --input-address tcp://127.0.0.1:5550 --log-input-rate 1" # data
+FLP2+=" --input-socket-type sub --input-buff-size $buffSize --input-method connect --input-address tcp://127.0.0.1:5550 --log-input-rate 0" # start signal
 FLP2+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5560 --log-output-rate 1"
 FLP2+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5561 --log-output-rate 1"
 FLP2+=" --output-socket-type pub --output-buff-size $buffSize --output-method connect --output-address tcp://127.0.0.1:5562 --log-output-rate 1"
