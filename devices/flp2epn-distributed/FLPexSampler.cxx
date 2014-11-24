@@ -28,7 +28,6 @@ FLPexSampler::~FLPexSampler()
 void FLPexSampler::Run()
 {
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
-  boost::this_thread::sleep(boost::posix_time::milliseconds(10000));
 
   int sent = 0;
   int signalValue = 1;
