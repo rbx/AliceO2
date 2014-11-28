@@ -26,7 +26,6 @@ class FLPex : public FairMQDevice
       HeartbeatTimeoutInMs,
       NumFLPs,
       SendOffset,
-      EventRate,
       EventSize,
       Last
     };
@@ -56,8 +55,6 @@ class FLPex : public FairMQDevice
     vector<boost::posix_time::ptime> fOutputHeartbeat;
 
     int fEventSize;
-    int fEventRate;
-    int fEventCounter;
 };
 
 } // namespace Devices

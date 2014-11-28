@@ -49,6 +49,7 @@ static void s_catch_signals (void)
 typedef struct DeviceOptions
 {
   string id;
+  int eventRate;
   int ioThreads;
   string outputSocketType;
   int outputBufSize;
@@ -65,6 +66,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   bpo::options_description desc("Options");
   desc.add_options()
     ("id", bpo::value<string>()->required(), "Device ID")
+    ("event-rate", bpo::value<int>()->default_value(0), "Event rate limit in maximum number of events per second")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
     ("output-socket-type", bpo::value<string>()->required(), "Output socket type: pub/push")
     ("output-buff-size", bpo::value<int>()->required(), "Output buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
@@ -84,6 +86,10 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
   if (vm.count("id")) {
     _options->id = vm["id"].as<string>();
+  }
+
+  if (vm.count("event-rate")) {
+    _options->eventRate = vm["event-rate"].as<int>();
   }
 
   if (vm.count("io-threads")) {
@@ -137,6 +143,7 @@ int main(int argc, char** argv)
 
   sampler.SetProperty(FLPexSampler::Id, options.id);
   sampler.SetProperty(FLPexSampler::NumIoThreads, options.ioThreads);
+  sampler.SetProperty(FLPexSampler::EventRate, options.eventRate);
 
   sampler.SetProperty(FLPexSampler::NumInputs, 0);
   sampler.SetProperty(FLPexSampler::NumOutputs, 1);

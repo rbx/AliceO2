@@ -5,7 +5,8 @@
  * @author D. Klein, A. Rybalchenko, M.Al-Turany, C. Kouzinopoulos
  */
 
-#include <boost/date_time/posix_time/posix_time.hpp>
+#include <fstream>
+
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
 
@@ -26,7 +27,7 @@ EPNex::~EPNex()
 {
 }
 
-void EPNex::PrintBuffer(unordered_map<int,int> &eventBuffer)
+void EPNex::PrintBuffer(map<uint64_t,int> &eventBuffer)
 {
   int size = eventBuffer.size();
   string header = "===== ";
@@ -39,7 +40,7 @@ void EPNex::PrintBuffer(unordered_map<int,int> &eventBuffer)
   }
   LOG(INFO) << header;
 
-  for (unordered_map<int,int>::iterator it = eventBuffer.begin(); it != eventBuffer.end(); ++it) {
+  for (map<uint64_t,int>::iterator it = eventBuffer.begin(); it != eventBuffer.end(); ++it) {
     string stars = "";
     for (int j = 1; j <= it->second; ++j) {
       stars += "*";
@@ -57,9 +58,9 @@ void EPNex::Run()
 
   // Currently number of outputs equals number of FLPs, each output = heartbeat channel.
   // This may need to be changed in future.
-  const int numFLPs = fNumOutputs; 
+  const int numFLPs = fNumOutputs;
 
-  unsigned long fullEvents = 0;
+  uint64_t fullEvents = 0;
   ptime time_start;
   ptime time_end;
 
@@ -68,11 +69,12 @@ void EPNex::Run()
     FairMQMessage* idPart = fTransportFactory->CreateMessage();
 
     if (fPayloadInputs->at(0)->Receive(idPart) > 0) {
-      unsigned long* id = reinterpret_cast<unsigned long*>(idPart->GetData());
+      uint64_t* id = reinterpret_cast<uint64_t*>(idPart->GetData());
       // LOG(INFO) << "Received Event #" << *id;
 
       if (fEventBuffer.find(*id) == fEventBuffer.end()) {
         fEventBuffer[*id] = 1;
+        fFullEventTime[*id].start = boost::posix_time::microsec_clock::local_time();
         // PrintBuffer(fEventBuffer);
       } else {
         ++fEventBuffer[*id];
@@ -80,13 +82,7 @@ void EPNex::Run()
         if (fEventBuffer[*id] == numFLPs) {
           // LOG(INFO) << "collected " << numFLPs << " parts of event #" << *id << ", processing...";
           // LOG(INFO) << "# of full events: " << ++fullEvents;
-          ++fullEvents;
-          if (fullEvents == 1) {
-            time_start = boost::posix_time::microsec_clock::local_time();
-          } else if (fullEvents == 100) {
-            time_end = boost::posix_time::microsec_clock::local_time();
-            LOG(WARN) << "Received 100 events in " << (time_end - time_start).total_milliseconds() << " milliseconds.";
-          }
+          fFullEventTime[*id].end = boost::posix_time::microsec_clock::local_time();
           fEventBuffer.erase(*id);
           // LOG(INFO) << "size of eventBuffer: " << eventBuffer.size();
         }
@@ -101,6 +97,12 @@ void EPNex::Run()
     }
     delete idPart;
   }
+
+  std::ofstream ofs(fId + "times.log");
+  for (map<uint64_t,eventDuration>::iterator it = fFullEventTime.begin(); it != fFullEventTime.end(); ++it) {
+    ofs << it->first << ": " << ((it->second).end - (it->second).start).total_milliseconds() << "\n";
+  }
+  ofs.close();
 
   rateLogger.interrupt();
   rateLogger.join();

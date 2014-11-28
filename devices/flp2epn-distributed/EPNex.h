@@ -2,16 +2,24 @@
  * EPNex.h
  *
  * @since 2013-01-09
- * @author D. Klein, A. Rybalchenko, M.Al-Turany, C. Kouzinopoulos
+ * @author D. Klein, A. Rybalchenko, M. Al-Turany, C. Kouzinopoulos
  */
 
 #ifndef ALICEO2_DEVICES_EPNEX_H_
 #define ALICEO2_DEVICES_EPNEX_H_
 
 #include <string>
-#include <unordered_map>
+#include <map>
+
+#include <boost/date_time/posix_time/posix_time.hpp>
 
 #include "FairMQDevice.h"
+
+struct eventDuration
+{
+  boost::posix_time::ptime start;
+  boost::posix_time::ptime end;
+};
 
 namespace AliceO2 {
 namespace Devices {
@@ -26,7 +34,7 @@ class EPNex : public FairMQDevice
     EPNex();
     virtual ~EPNex();
 
-    void PrintBuffer(std::unordered_map<int,int> &eventBuffer);
+    void PrintBuffer(std::map<uint64_t,int> &eventBuffer);
 
     virtual void SetProperty(const int key, const std::string& value, const int slot = 0);
     virtual std::string GetProperty(const int key, const std::string& default_ = "", const int slot = 0);
@@ -38,7 +46,8 @@ class EPNex : public FairMQDevice
     void sendHeartbeats();
 
     int fHeartbeatIntervalInMs;
-    std::unordered_map<int,int> fEventBuffer;
+    std::map<uint64_t,int> fEventBuffer;
+    std::map<uint64_t,eventDuration> fFullEventTime;
 };
 
 } // namespace Devices
