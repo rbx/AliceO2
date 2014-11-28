@@ -2,7 +2,7 @@
  * EPNex.h
  *
  * @since 2013-01-09
- * @author D. Klein, A. Rybalchenko, M.Al-Turany, C. Kouzinopoulos
+ * @author D. Klein, A. Rybalchenko, M. Al-Turany, C. Kouzinopoulos
  */
 
 #ifndef ALICEO2_DEVICES_EPNEX_H_

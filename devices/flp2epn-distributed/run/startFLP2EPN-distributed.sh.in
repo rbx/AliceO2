@@ -1,10 +1,12 @@
 #!/bin/bash
 
-buffSize="2" # zeromq high-water mark is in messages
+buffSize="10" # zeromq high-water mark is in messages
 #buffSize="50000000" # nanomsg buffer size is in bytes
 
 SAMPLER="testFLPSampler"
 SAMPLER+=" --id 101"
+SAMPLER+=" --event-size 1"
+SAMPLER+=" --event-rate 100"
 SAMPLER+=" --output-socket-type pub --output-buff-size $buffSize --output-method bind --output-address tcp://*:5550"
 xterm -geometry 80x25+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SAMPLER &
 

@@ -74,17 +74,15 @@ void FLPex::Run()
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
 
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
-  boost::thread resetEventCounter(boost::bind(&FLPex::ResetEventCounter, this));
 
   FairMQPoller* poller = fTransportFactory->CreatePoller(*fPayloadInputs);
 
-  unsigned long eventId = 0;
+  uint64_t timeframeId = 0;
 
   // base buffer, to be copied from for every payload
   void* buffer = operator new[](fEventSize);
   FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
 
-  bool started = false;
   int direction = 0;
   int counter = 0;
   ptime currentHeartbeat;
@@ -94,7 +92,7 @@ void FLPex::Run()
   LOG(INFO) << "waiting for the start signal...";
 
   while (fState == RUNNING) {
-    poller->Poll(0);
+    poller->Poll(-1);
 
     // input 0 - commands
     if (poller->CheckInput(0)) {
@@ -124,17 +122,10 @@ void FLPex::Run()
       FairMQMessage* startSignal = fTransportFactory->CreateMessage();
       fPayloadInputs->at(2)->Receive(startSignal);
       delete startSignal;
-      LOG(INFO) << "starting!";
-      started = true;
-    }
-
-    if (started) {
-      // for which EPN is the message?
-      direction = eventId % fNumOutputs;
 
       // initialize and store id msg part in the buffer.
       FairMQMessage* idPart = fTransportFactory->CreateMessage(sizeof(unsigned long));
-      memcpy(idPart->GetData(), &eventId, sizeof(unsigned long));
+      memcpy(idPart->GetData(), &timeframeId, sizeof(unsigned long));
       fIdBuffer.push(idPart);
 
       // initialize and store data msg part in the buffer.
@@ -143,7 +134,11 @@ void FLPex::Run()
       fDataBuffer.push(dataPart);
 
       if (counter == fSendOffset) {
-        // LOG(INFO) << "Sending event " << eventId << " to EPN#" << direction << "...";
+        unsigned long currentTimeframeId = *(reinterpret_cast<unsigned long*>(fIdBuffer.front()->GetData()));
+
+        // for which EPN is the message?
+        direction = currentTimeframeId % fNumOutputs;
+        // LOG(INFO) << "Sending event " << currentTimeframeId << " to EPN#" << direction << "...";
 
         currentHeartbeat = boost::posix_time::microsec_clock::local_time();
         storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, direction);
@@ -153,7 +148,7 @@ void FLPex::Run()
             (currentHeartbeat - storedHeartbeat).total_milliseconds() < fHeartbeatTimeoutInMs) {
           fPayloadOutputs->at(direction)->Send(fIdBuffer.front(), "snd-more");
           if (fPayloadOutputs->at(direction)->Send(fDataBuffer.front(), "no-block") == 0) {
-            LOG(ERROR) << "Could not send message with event #" << eventId << " without blocking";
+            LOG(ERROR) << "Could not send message with event #" << currentTimeframeId << " without blocking";
           }
           fIdBuffer.pop();
           fDataBuffer.pop();
@@ -170,22 +165,13 @@ void FLPex::Run()
         LOG(ERROR) << "Counter larger than offset, something went wrong...";
       }
 
-      ++eventId;
-
-      --fEventCounter;
-
-      while (fEventCounter == 0) {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-      }
-
+      ++timeframeId;
     }
 
   } // while (fState == RUNNING)
 
   delete baseMsg;
 
-  resetEventCounter.interrupt();
-  resetEventCounter.join();
   rateLogger.interrupt();
   rateLogger.join();
 
@@ -195,18 +181,6 @@ void FLPex::Run()
   boost::lock_guard<boost::mutex> lock(fRunningMutex);
   fRunningFinished = true;
   fRunningCondition.notify_one();
-}
-
-void FLPex::ResetEventCounter()
-{
-  while (true) {
-    try {
-      fEventCounter = fEventRate / 100;
-      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    } catch (boost::thread_interrupted&) {
-      break;
-    }
-  }
 }
 
 void FLPex::SetProperty(const int key, const string& value, const int slot/*= 0*/)
@@ -238,9 +212,6 @@ void FLPex::SetProperty(const int key, const int value, const int slot/*= 0*/)
     case EventSize:
       fEventSize = value;
       break;
-    case EventRate:
-      fEventRate = value;
-      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -256,8 +227,6 @@ int FLPex::GetProperty(const int key, const int default_/*= 0*/, const int slot/
       return fSendOffset;
     case EventSize:
       return fEventSize;
-    case EventRate:
-      return fEventRate;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }
