@@ -36,8 +36,6 @@ void FLPex::Init()
 
   fScheduler.setVerbosity(0);
 
-  LOG(WARN) << fSchedulerAddress.c_str();
-
   int err = fScheduler.initConnexion(fSchedulerAddress.c_str());
   if (err > 0) {
     LOG(ERROR) << "initConnexion() failed: error " << err;
