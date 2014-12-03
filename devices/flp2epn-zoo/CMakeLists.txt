@@ -29,6 +29,7 @@ link_directories(${LINK_DIRECTORIES})
 set(SRCS
   FLPex.cxx
   EPNex.cxx
+  FLPexSampler.cxx
   EpnScheduler.cxx
 )
 
@@ -45,12 +46,14 @@ GENERATE_LIBRARY()
 Set(Exe_Names
   testFLP_zoo
   testEPN_zoo
+  testFLPSampler_zoo
   epnMaster
 )
 
 set(Exe_Source
   run/runFLP_zoo.cxx
   run/runEPN_zoo.cxx
+  run/runFLPSampler.cxx
   epnMaster.cxx
 )
 

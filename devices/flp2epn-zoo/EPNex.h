@@ -22,7 +22,8 @@ class EPNex : public FairMQDevice
 {
   public:
     enum {
-      HeartbeatIntervalInMs = FairMQDevice::Last,
+      NumFLPs = FairMQDevice::Last,
+      SchedulerAddress,
       Last
     };
     EPNex();
@@ -42,6 +43,7 @@ class EPNex : public FairMQDevice
     std::unordered_map<int,int> fEventBuffer;
     int fNumFLPs;
 
+    string fSchedulerAddress;
     EpnScheduler fScheduler;
 };
 

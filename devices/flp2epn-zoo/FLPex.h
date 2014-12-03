@@ -23,7 +23,7 @@ class FLPex : public FairMQDevice
   public:
     enum {
       SendOffset = FairMQDevice::Last,
-      EventRate,
+      SchedulerAddress,
       EventSize,
       Last
     };
@@ -47,9 +47,8 @@ class FLPex : public FairMQDevice
     std::queue<FairMQMessage*> fDataBuffer;
 
     int fEventSize;
-    int fEventRate;
-    int fEventCounter;
 
+    string fSchedulerAddress;
     EpnScheduler fScheduler;
 };
 

@@ -50,6 +50,8 @@ typedef struct DeviceOptions
 {
   string id;
   int ioThreads;
+  int numFLPs;
+  string schedulerAddress;
   string inputSocketType;
   int inputBufSize;
   string inputMethod;
@@ -67,6 +69,8 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   desc.add_options()
     ("id", bpo::value<string>()->required(), "Device ID")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
+    ("num-flps", bpo::value<int>()->required(), "Number of FLPs")
+    ("scheduler-address", bpo::value<string>()->required(), "Address of EpnScheduler")
     ("input-socket-type", bpo::value<string>()->required(), "Input socket type: sub/pull")
     ("input-buff-size", bpo::value<int>()->required(), "Input buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
     ("input-method", bpo::value<string>()->required(), "Input method: bind/connect")
@@ -90,6 +94,14 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
   if (vm.count("io-threads")) {
     _options->ioThreads = vm["io-threads"].as<int>();
+  }
+
+  if (vm.count("num-flps")) {
+    _options->numFLPs = vm["num-flps"].as<int>();
+  }
+
+  if (vm.count("scheduler-address")) {
+    _options->schedulerAddress = vm["scheduler-address"].as<string>();
   }
 
   if (vm.count("input-socket-type")) {
@@ -143,6 +155,8 @@ int main(int argc, char** argv)
 
   epn.SetProperty(EPNex::Id, options.id);
   epn.SetProperty(EPNex::NumIoThreads, options.ioThreads);
+  epn.SetProperty(EPNex::NumFLPs, options.numFLPs);
+  epn.SetProperty(EPNex::SchedulerAddress, options.schedulerAddress);
 
   epn.SetProperty(EPNex::NumInputs, 1);
   epn.SetProperty(EPNex::NumOutputs, 0);

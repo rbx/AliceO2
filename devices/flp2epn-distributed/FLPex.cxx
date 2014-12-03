@@ -81,7 +81,7 @@ void FLPex::Run()
   void* buffer = operator new[](fEventSize);
   FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
 
-  int direction = 0;
+  uint16_t direction = 0;
   int counter = 0;
   ptime currentHeartbeat;
   ptime storedHeartbeat;

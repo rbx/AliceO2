@@ -22,8 +22,7 @@ using namespace AliceO2::Devices;
 FLPex::FLPex()
   : fSendOffset(0)
   , fEventSize(10000)
-  , fEventRate(1)
-  , fEventCounter(0)
+  , fSchedulerAddress("")
 {
 }
 
@@ -37,7 +36,7 @@ void FLPex::Init()
 
   fScheduler.setVerbosity(0);
 
-  int err = fScheduler.initConnexion("127.0.0.1:2181");
+  int err = fScheduler.initConnexion(fSchedulerAddress.c_str());
   if (err > 0) {
     LOG(ERROR) << "initConnexion() failed: error " << err;
   }
@@ -53,25 +52,22 @@ void FLPex::Run()
   LOG(INFO) << ">>>>>>> Run <<<<<<<";
 
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
-  boost::thread resetEventCounter(boost::bind(&FLPex::ResetEventCounter, this));
 
   FairMQPoller* poller = fTransportFactory->CreatePoller(*fPayloadInputs);
 
-  unsigned long timeframeId = 0;
+  uint64_t timeframeId = 0;
 
   // base buffer, to be copied from for every payload
   void* buffer = operator new[](fEventSize);
   FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
 
-  bool started = false;
   uint16_t direction = 0;
   int counter = 0;
 
-  // wait for the start signal before starting any work.
-  LOG(INFO) << "waiting for the start signal...";
+
 
   while (fState == RUNNING) {
-    poller->Poll(0);
+    poller->Poll(-1);
 
     // input 0 - commands
     if (poller->CheckInput(0)) {
@@ -89,12 +85,6 @@ void FLPex::Run()
       FairMQMessage* startSignal = fTransportFactory->CreateMessage();
       fPayloadInputs->at(1)->Receive(startSignal);
       delete startSignal;
-      LOG(INFO) << "starting!";
-      started = true;
-    }
-
-    if (started) {
-      // for which EPN is the message?
 
       // initialize and store id msg part in the buffer.
       FairMQMessage* idPart = fTransportFactory->CreateMessage(sizeof(unsigned long));
@@ -137,21 +127,12 @@ void FLPex::Run()
       }
 
       ++timeframeId;
-
-      --fEventCounter;
-
-      while (fEventCounter == 0) {
-        boost::this_thread::sleep(boost::posix_time::milliseconds(1));
-      }
-
     }
 
   } // while (fState == RUNNING)
 
   delete baseMsg;
 
-  resetEventCounter.interrupt();
-  resetEventCounter.join();
   rateLogger.interrupt();
   rateLogger.join();
 
@@ -163,21 +144,12 @@ void FLPex::Run()
   fRunningCondition.notify_one();
 }
 
-void FLPex::ResetEventCounter()
-{
-  while (true) {
-    try {
-      fEventCounter = fEventRate / 100;
-      boost::this_thread::sleep(boost::posix_time::milliseconds(10));
-    } catch (boost::thread_interrupted&) {
-      break;
-    }
-  }
-}
-
 void FLPex::SetProperty(const int key, const string& value, const int slot/*= 0*/)
 {
   switch (key) {
+    case SchedulerAddress:
+      fSchedulerAddress = value;
+      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -187,6 +159,8 @@ void FLPex::SetProperty(const int key, const string& value, const int slot/*= 0*
 string FLPex::GetProperty(const int key, const string& default_/*= ""*/, const int slot/*= 0*/)
 {
   switch (key) {
+    case SchedulerAddress:
+      return fSchedulerAddress;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }
@@ -201,9 +175,6 @@ void FLPex::SetProperty(const int key, const int value, const int slot/*= 0*/)
     case EventSize:
       fEventSize = value;
       break;
-    case EventRate:
-      fEventRate = value;
-      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -217,8 +188,6 @@ int FLPex::GetProperty(const int key, const int default_/*= 0*/, const int slot/
       return fSendOffset;
     case EventSize:
       return fEventSize;
-    case EventRate:
-      return fEventRate;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }

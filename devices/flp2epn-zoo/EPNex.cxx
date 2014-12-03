@@ -18,7 +18,8 @@ using boost::posix_time::ptime;
 using namespace AliceO2::Devices;
 
 EPNex::EPNex()
-  : fNumFLPs(3)
+  : fNumFLPs(0)
+  , fSchedulerAddress("")
 {
 }
 
@@ -52,7 +53,7 @@ void EPNex::Init()
 {
   FairMQDevice::Init();
 
-  int err = fScheduler.initConnexion("127.0.0.1:2181");
+  int err = fScheduler.initConnexion(fSchedulerAddress.c_str());
   if (err > 0) {
     LOG(ERROR) << "initConnexion() failed: error " << err;
   }
@@ -140,6 +141,9 @@ void EPNex::Run()
 void EPNex::SetProperty(const int key, const string& value, const int slot/*= 0*/)
 {
   switch (key) {
+    case SchedulerAddress:
+      fSchedulerAddress = value;
+      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -149,6 +153,8 @@ void EPNex::SetProperty(const int key, const string& value, const int slot/*= 0*
 string EPNex::GetProperty(const int key, const string& default_/*= ""*/, const int slot/*= 0*/)
 {
   switch (key) {
+    case SchedulerAddress:
+      return fSchedulerAddress;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }
@@ -157,6 +163,9 @@ string EPNex::GetProperty(const int key, const string& default_/*= ""*/, const i
 void EPNex::SetProperty(const int key, const int value, const int slot/*= 0*/)
 {
   switch (key) {
+    case NumFLPs:
+      fNumFLPs = value;
+      break;
     default:
       FairMQDevice::SetProperty(key, value, slot);
       break;
@@ -166,6 +175,8 @@ void EPNex::SetProperty(const int key, const int value, const int slot/*= 0*/)
 int EPNex::GetProperty(const int key, const int default_/*= 0*/, const int slot/*= 0*/)
 {
   switch (key) {
+    case NumFLPs:
+      return fNumFLPs;
     default:
       return FairMQDevice::GetProperty(key, default_, slot);
   }
