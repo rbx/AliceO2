@@ -24,8 +24,6 @@ FLPex::FLPex()
   : fHeartbeatTimeoutInMs(20000)
   , fSendOffset(0)
   , fEventSize(10000)
-  , fEventRate(1)
-  , fEventCounter(0)
 {
 }
 
@@ -88,9 +86,6 @@ void FLPex::Run()
   ptime currentHeartbeat;
   ptime storedHeartbeat;
 
-  // wait for the start signal before starting any work.
-  LOG(INFO) << "waiting for the start signal...";
-
   while (fState == RUNNING) {
     poller->Poll(-1);
 
@@ -117,7 +112,7 @@ void FLPex::Run()
       delete heartbeatMsg;
     }
 
-    // input 1 - heartbeats
+    // input 2 - signal
     if (poller->CheckInput(2)) {
       FairMQMessage* startSignal = fTransportFactory->CreateMessage();
       fPayloadInputs->at(2)->Receive(startSignal);

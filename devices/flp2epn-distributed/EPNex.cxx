@@ -57,7 +57,7 @@ void EPNex::Run()
 
   // Currently number of outputs equals number of FLPs, each output = heartbeat channel.
   // This may need to be changed in future.
-  const int numFLPs = fNumOutputs; 
+  const int numFLPs = fNumOutputs;
 
   unsigned long fullEvents = 0;
   ptime time_start;

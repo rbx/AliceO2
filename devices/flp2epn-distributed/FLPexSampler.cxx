@@ -18,8 +18,7 @@ using namespace std;
 using namespace AliceO2::Devices;
 
 FLPexSampler::FLPexSampler()
-  : fEventSize(10000)
-  , fEventRate(1)
+  : fEventRate(1)
   , fEventCounter(0)
 {
 }
@@ -36,8 +35,8 @@ void FLPexSampler::Run()
   boost::thread rateLogger(boost::bind(&FairMQDevice::LogSocketRates, this));
   boost::thread resetEventCounter(boost::bind(&FLPexSampler::ResetEventCounter, this));
 
-  void* buffer = operator new[](fEventSize);
-  FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
+  void* buffer = operator new[](100);
+  FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, 100);
 
   while (fState == RUNNING) {
       FairMQMessage* msg = fTransportFactory->CreateMessage();
@@ -107,9 +106,6 @@ string FLPexSampler::GetProperty(const int key, const string& default_ /*= ""*/,
 void FLPexSampler::SetProperty(const int key, const int value, const int slot /*= 0*/)
 {
   switch (key) {
-    case EventSize:
-      fEventSize = value;
-      break;
     case EventRate:
       fEventRate = value;
       break;
@@ -122,8 +118,6 @@ void FLPexSampler::SetProperty(const int key, const int value, const int slot /*
 int FLPexSampler::GetProperty(const int key, const int default_ /*= 0*/, const int slot /*= 0*/)
 {
   switch (key) {
-    case EventSize:
-      return fEventSize;
     case EventRate:
       return fEventRate;
     default:

@@ -5,7 +5,6 @@ buffSize="10" # zeromq high-water mark is in messages
 
 SAMPLER="testFLPSampler"
 SAMPLER+=" --id 101"
-SAMPLER+=" --event-size 1"
 SAMPLER+=" --event-rate 100"
 SAMPLER+=" --output-socket-type pub --output-buff-size $buffSize --output-method bind --output-address tcp://*:5550"
 xterm -geometry 80x25+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SAMPLER &
@@ -13,7 +12,6 @@ xterm -geometry 80x25+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SAMPLER &
 FLP0="testFLP_distributed"
 FLP0+=" --id FLP0"
 FLP0+=" --event-size 10000000"
-FLP0+=" --event-rate 100"
 FLP0+=" --num-inputs 3"
 FLP0+=" --num-outputs 3"
 FLP0+=" --heartbeat-timeout 20000"
@@ -29,7 +27,6 @@ xterm -geometry 80x25+500+0 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP0 &
 FLP1="testFLP_distributed"
 FLP1+=" --id FLP1"
 FLP1+=" --event-size 10000000"
-FLP1+=" --event-rate 100"
 FLP1+=" --num-inputs 3"
 FLP1+=" --num-outputs 3"
 FLP1+=" --heartbeat-timeout 20000"
@@ -45,7 +42,6 @@ xterm -geometry 80x25+500+350 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP1 &
 FLP2="testFLP_distributed"
 FLP2+=" --id FLP2"
 FLP2+=" --event-size 10000000"
-FLP2+=" --event-rate 100"
 FLP2+=" --num-inputs 3"
 FLP2+=" --num-outputs 3"
 FLP2+=" --heartbeat-timeout 20000"
