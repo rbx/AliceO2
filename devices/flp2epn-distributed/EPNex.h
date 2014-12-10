@@ -32,6 +32,7 @@ class EPNex : public FairMQDevice
     enum {
       HeartbeatIntervalInMs = FairMQDevice::Last,
       NumFLPs,
+      BufferTimeoutInMs,
       Last
     };
     EPNex();
@@ -49,6 +50,7 @@ class EPNex : public FairMQDevice
     void sendHeartbeats();
 
     int fHeartbeatIntervalInMs;
+    int fBufferTimeoutInMs;
     int fNumFLPs;
 
     int fNumOfDiscardedTimeframes;

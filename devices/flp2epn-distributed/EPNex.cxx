@@ -113,8 +113,8 @@ void EPNex::Run()
       // check if any incomplete timeframes in the buffer are older than timeout period, and discard them
       unordered_map<uint64_t,timeframeBuffer>::iterator it = fTimeframeBuffer.begin();
       while (it != fTimeframeBuffer.end()) {
-        if ((boost::posix_time::microsec_clock::local_time() - (it->second).startTime).total_milliseconds() > 1000) {
-          LOG(WARN) << "Timeframe #" << it->first << " incomplete after 1000 milliseconds, discarding";
+        if ((boost::posix_time::microsec_clock::local_time() - (it->second).startTime).total_milliseconds() > fBufferTimeoutInMs) {
+          LOG(WARN) << "Timeframe #" << it->first << " incomplete after " << fBufferTimeoutInMs << " milliseconds, discarding";
           for(int i = 0; i < (it->second).parts.size(); ++i) {
             delete (it->second).parts.at(i);
           }
@@ -128,7 +128,7 @@ void EPNex::Run()
         }
       }
 
-      LOG(WARN) << "Buffer size: " << fTimeframeBuffer.size();
+      // LOG(WARN) << "Buffer size: " << fTimeframeBuffer.size();
     }
     delete idPart;
   }
@@ -196,6 +196,9 @@ void EPNex::SetProperty(const int key, const int value, const int slot/*= 0*/)
     case HeartbeatIntervalInMs:
       fHeartbeatIntervalInMs = value;
       break;
+    case BufferTimeoutInMs:
+      fBufferTimeoutInMs = value;
+      break;
     case NumFLPs:
       fNumFLPs = value;
       break;
@@ -210,6 +213,8 @@ int EPNex::GetProperty(const int key, const int default_/*= 0*/, const int slot/
   switch (key) {
     case HeartbeatIntervalInMs:
       return fHeartbeatIntervalInMs;
+    case BufferTimeoutInMs:
+      return fBufferTimeoutInMs;
     case NumFLPs:
       return fNumFLPs;
     default:
