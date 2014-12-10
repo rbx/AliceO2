@@ -52,6 +52,7 @@ typedef struct DeviceOptions
   int ioThreads;
   int numOutputs;
   int heartbeatIntervalInMs;
+  int numFLPs;
   string inputSocketType;
   int inputBufSize;
   string inputMethod;
@@ -76,6 +77,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
     ("num-outputs", bpo::value<int>()->required(), "Number of EPN output sockets")
     ("heartbeat-interval", bpo::value<int>()->default_value(5000), "Heartbeat interval in milliseconds")
+    ("num-flps", bpo::value<int>()->required(), "Number of FLPs")
     ("input-socket-type", bpo::value<string>()->required(), "Input socket type: sub/pull")
     ("input-buff-size", bpo::value<int>()->required(), "Input buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
     ("input-method", bpo::value<string>()->required(), "Input method: bind/connect")
@@ -112,6 +114,10 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
   if (vm.count("heartbeat-interval")) {
     _options->heartbeatIntervalInMs = vm["heartbeat-interval"].as<int>();
+  }
+
+  if (vm.count("num-flps")) {
+    _options->numFLPs = vm["num-flps"].as<int>();
   }
 
   if (vm.count("input-socket-type")) {
@@ -189,6 +195,7 @@ int main(int argc, char** argv)
   epn.SetProperty(EPNex::NumInputs, 1);
   epn.SetProperty(EPNex::NumOutputs, options.numOutputs);
   epn.SetProperty(EPNex::HeartbeatIntervalInMs, options.heartbeatIntervalInMs);
+  epn.SetProperty(EPNex::NumFLPs, options.numFLPs);
 
   epn.ChangeState(EPNex::INIT);
 
