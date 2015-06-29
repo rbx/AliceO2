@@ -155,8 +155,17 @@ int main(int argc, char** argv)
 
   if (IPs.count("ib0")) {
     ss << "tcp://" << IPs["ib0"] << ":5655";
-  } else {
+    LOG(INFO) << ss.str();
+  } else if (IPs.count("eth0")) {
     ss << "tcp://" << IPs["eth0"] << ":5655";
+    LOG(INFO) << ss.str();
+  } else if (IPs.count("wlan0")) {
+    ss << "tcp://" << IPs["wlan0"] << ":5655";
+    LOG(INFO) << ss.str();
+  } else {
+    LOG(INFO) << ss.str();
+    LOG(ERROR) << "Could not find ib0, eth0 or wlan0";
+    exit(EXIT_FAILURE);
   }
 
   string initialInputAddress = ss.str();
@@ -182,6 +191,7 @@ int main(int argc, char** argv)
 
   LOG(INFO) << "FLP Sender";
   LOG(INFO) << "PID: " << getpid();
+  LOG(INFO) << "Device ID: " << options.id;
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 
