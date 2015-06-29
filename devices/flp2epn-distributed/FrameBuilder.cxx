@@ -21,9 +21,9 @@ FrameBuilder::FrameBuilder()
 
 void FrameBuilder::Run()
 {
-  FairMQPoller* poller = fTransportFactory->CreatePoller(fChannels["data-in"]);
+  FairMQPoller* poller = fTransportFactory->CreatePoller(fChannels.at("data-in"));
 
-  fNumInputs = fChannels["data-in"].size();
+  fNumInputs = fChannels.at("data-in").size();
   int noOfMsgParts = fNumInputs - 1;
 
   while (GetCurrentState() == RUNNING) {
@@ -33,11 +33,11 @@ void FrameBuilder::Run()
 
     for (int i = 0; i < fNumInputs; ++i) {
       if (poller->CheckInput(i)) {
-        if (fChannels["data-in"].at(i).Receive(msg) > 0) {
+        if (fChannels.at("data-in").at(i).Receive(msg) > 0) {
           if (i < noOfMsgParts) {
-            fChannels["data-out"].at(0).Send(msg, "snd-more");
+            fChannels.at("data-out").at(0).Send(msg, "snd-more");
           } else {
-            fChannels["data-out"].at(0).Send(msg);
+            fChannels.at("data-out").at(0).Send(msg);
           }
         }
       }

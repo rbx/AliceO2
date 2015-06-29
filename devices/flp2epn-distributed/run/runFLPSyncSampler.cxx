@@ -6,7 +6,6 @@
  */
 
 #include <iostream>
-#include <csignal>
 
 #include "boost/program_options.hpp"
 
@@ -17,28 +16,6 @@
 
 using namespace std;
 using namespace AliceO2::Devices;
-
-FLPSyncSampler sampler;
-
-static void s_signal_handler (int signal)
-{
-  cout << endl << "Caught signal " << signal << endl;
-
-  sampler.ChangeState(FLPSyncSampler::END);
-
-  cout << "Shutdown complete. Bye!" << endl;
-  exit(1);
-}
-
-static void s_catch_signals (void)
-{
-  struct sigaction action;
-  action.sa_handler = s_signal_handler;
-  action.sa_flags = 0;
-  sigemptyset(&action.sa_mask);
-  sigaction(SIGINT, &action, NULL);
-  sigaction(SIGTERM, &action, NULL);
-}
 
 typedef struct DeviceOptions
 {
@@ -113,7 +90,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
 int main(int argc, char** argv)
 {
-  s_catch_signals();
+  FLPSyncSampler sampler;
 
   DeviceOptions_t options;
   try {
@@ -124,7 +101,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  LOG(INFO) << "PID: " << getpid();
+  LOG(INFO) << "FLP Sync Sampler, ID: " << options.id << " (PID: " << getpid() << ")";
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 
@@ -153,17 +130,7 @@ int main(int argc, char** argv)
   sampler.WaitForEndOfState("INIT_TASK");
 
   sampler.ChangeState("RUN");
-  sampler.WaitForEndOfState("RUN");
-
-  sampler.ChangeState("STOP");
-
-  sampler.ChangeState("RESET_TASK");
-  sampler.WaitForEndOfState("RESET_TASK");
-
-  sampler.ChangeState("RESET_DEVICE");
-  sampler.WaitForEndOfState("RESET_DEVICE");
-
-  sampler.ChangeState("END");
+  sampler.InteractiveStateLoop();
 
   return 0;
 }

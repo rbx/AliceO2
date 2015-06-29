@@ -6,7 +6,6 @@
  */
 
 #include <iostream>
-#include <csignal>
 
 #include "boost/program_options.hpp"
 
@@ -17,28 +16,6 @@
 
 using namespace std;
 using namespace AliceO2::Devices;
-
-EPNReceiver epn;
-
-static void s_signal_handler (int signal)
-{
-  cout << endl << "Caught signal " << signal << endl;
-
-  epn.ChangeState(EPNReceiver::END);
-
-  cout << "Shutdown complete. Bye!" << endl;
-  exit(1);
-}
-
-static void s_catch_signals (void)
-{
-  struct sigaction action;
-  action.sa_handler = s_signal_handler;
-  action.sa_flags = 0;
-  sigemptyset(&action.sa_mask);
-  sigaction(SIGINT, &action, NULL);
-  sigaction(SIGTERM, &action, NULL);
-}
 
 typedef struct DeviceOptions
 {
@@ -73,7 +50,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   desc.add_options()
     ("id", bpo::value<string>()->required(), "Device ID")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
-    ("num-outputs", bpo::value<int>()->required(), "Number of EPN output sockets")
+    ("num-outputs", bpo::value<int>()->default_value(0), "Number of EPN output sockets (DEPRECATED)") // deprecated
     ("heartbeat-interval", bpo::value<int>()->default_value(5000), "Heartbeat interval in milliseconds")
     ("buffer-timeout", bpo::value<int>()->default_value(1000), "Buffer timeout in milliseconds")
     ("num-flps", bpo::value<int>()->required(), "Number of FLPs")
@@ -125,7 +102,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
 int main(int argc, char** argv)
 {
-  s_catch_signals();
+  EPNReceiver epn;
 
   DeviceOptions_t options;
   try {
@@ -136,7 +113,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  LOG(INFO) << "PID: " << getpid();
+  LOG(INFO) << "EPN Receiver, ID: " << options.id << " (PID: " << getpid() << ")";
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 
@@ -171,17 +148,7 @@ int main(int argc, char** argv)
   epn.WaitForEndOfState("INIT_TASK");
 
   epn.ChangeState("RUN");
-  epn.WaitForEndOfState("RUN");
-
-  epn.ChangeState("STOP");
-
-  epn.ChangeState("RESET_TASK");
-  epn.WaitForEndOfState("RESET_TASK");
-
-  epn.ChangeState("RESET_DEVICE");
-  epn.WaitForEndOfState("RESET_DEVICE");
-
-  epn.ChangeState("END");
+  epn.InteractiveStateLoop();
 
   return 0;
 }

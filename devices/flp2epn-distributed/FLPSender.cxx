@@ -12,7 +12,6 @@
 #include <boost/bind.hpp>
 
 #include "FairMQLogger.h"
-#include "FairMQPoller.h"
 
 #include "FLPSender.h"
 
@@ -27,13 +26,18 @@ struct f2eHeader {
 };
 
 FLPSender::FLPSender()
-  : fHeartbeatTimeoutInMs(20000)
-  , fOutputHeartbeat()
-  , fIndex(0)
+  : fIndex(0)
   , fSendOffset(0)
   , fSendDelay(8)
   , fHeaderBuffer()
   , fDataBuffer()
+  , fArrivalTime()
+  , fSndMoreFlag(0)
+  , fNoBlockFlag(0)
+  , fNumEPNs(0)
+  , fHeartbeatTimeoutInMs(20000)
+  , fHeartbeats()
+  , fHeartbeatMutex()
   , fEventSize(10000)
   , fTestMode(0)
 {
@@ -43,123 +47,106 @@ FLPSender::~FLPSender()
 {
 }
 
-void FLPSender::Init()
+void FLPSender::InitTask()
 {
   ptime nullTime;
 
-  for (int i = 0; i < fChannels["data-out"].size(); ++i) {
-    fOutputHeartbeat.push_back(nullTime);
+  fNumEPNs = fChannels.at("data-out").size();
+
+  for (int i = 0; i < fNumEPNs; ++i) {
+    fHeartbeats[fChannels.at("data-out").at(i).GetAddress()] = nullTime;
   }
 }
 
-bool FLPSender::updateIPHeartbeat(string reply)
+void FLPSender::receiveHeartbeats()
 {
-  for (int i = 0; i < fChannels["data-out"].size(); ++i) {
-    if (fChannels["data-out"].at(i).GetAddress() == reply) {
-      ptime currentTime = boost::posix_time::microsec_clock::local_time();
-      ptime storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, i);
+  FairMQChannel& hbChannel = fChannels.at("heartbeat-in").at(0);
 
-      if (to_simple_string(storedHeartbeat) != "not-a-date-time") {
-        // LOG(INFO) << "EPN " << i << " (" << reply << ")" << " last seen "
-        //           << (currentTime - storedHeartbeat).total_milliseconds() << " ms ago.";
+  while (CheckCurrentState(RUNNING)) {
+    try {
+      FairMQMessage* hbMsg = fTransportFactory->CreateMessage();
+
+      if (hbChannel.Receive(hbMsg) > 0) {
+        string address = string(static_cast<char*>(hbMsg->GetData()), hbMsg->GetSize());
+
+        if (fHeartbeats.find(address) != fHeartbeats.end()) {
+            ptime now = boost::posix_time::microsec_clock::local_time();
+            ptime storedHeartbeat = fHeartbeats[address];
+
+            if (to_simple_string(storedHeartbeat) != "not-a-date-time") {
+              // LOG(INFO) << address << " last seen " << (now - storedHeartbeat).total_milliseconds() << " ms ago.";
+            } else {
+              LOG(INFO) << "IP " << address << " has no heartbeat associated, adding: " << now;
+            }
+
+            boost::unique_lock<boost::shared_mutex> uniqueLock(fHeartbeatMutex);
+            fHeartbeats[address] = now;
+        } else {
+          LOG(ERROR) << "IP " << address << " unknown, not provided at execution time";
+        }
       }
-      else {
-        LOG(INFO) << "IP has no heartbeat associated. Adding heartbeat: " << currentTime;
-      }
 
-      SetProperty(OutputHeartbeat, currentTime, i);
-
-      return true;
+      delete hbMsg;
+    } catch (boost::thread_interrupted&) {
+      LOG(INFO) << "FLPSender::receiveHeartbeats() interrupted";
+      break;
     }
   }
-  LOG(ERROR) << "IP " << reply << " unknown, not provided at execution time";
-
-  return false;
 }
 
 void FLPSender::Run()
 {
-  FairMQPoller* poller = fTransportFactory->CreatePoller(fChannels["data-in"]);
+  boost::thread heartbeatReceiver(boost::bind(&FLPSender::receiveHeartbeats, this));
 
   // base buffer, to be copied from for every timeframe body
   void* buffer = operator new[](fEventSize);
   FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
 
-  ptime currentTime;
-  ptime storedHeartbeat;
+  fSndMoreFlag = fChannels.at("data-in").at(0).fSocket->SNDMORE;
+  fNoBlockFlag = fChannels.at("data-in").at(0).fSocket->NOBLOCK;
 
   uint64_t timeFrameId = 0;
 
-  while (GetCurrentState() == RUNNING) {
-    poller->Poll(2);
+  while (CheckCurrentState(RUNNING)) {
+    // initialize f2e header
+    f2eHeader* h = new f2eHeader;
 
-    // input 0 - commands
-    if (poller->CheckInput(0)) {
-      FairMQMessage* commandMsg = fTransportFactory->CreateMessage();
+    if (fTestMode > 0) {
+      // test-mode: receive and store id part in the buffer.
+      FairMQMessage* idPart = fTransportFactory->CreateMessage();
+      fChannels.at("data-in").at(0).Receive(idPart);
 
-      if (fChannels["data-in"].at(0).Receive(commandMsg) > 0) {
-        //... handle command ...
+      h->timeFrameId = *(reinterpret_cast<uint64_t*>(idPart->GetData()));
+      h->flpIndex = fIndex;
+
+      delete idPart;
+    } else {
+      // regular mode: use the id generated locally
+      h->timeFrameId = timeFrameId;
+      h->flpIndex = fIndex;
+
+      if (++timeFrameId == UINT64_MAX - 1) {
+        timeFrameId = 0;
       }
-
-      delete commandMsg;
     }
 
-    // input 1 - heartbeats
-    if (poller->CheckInput(1)) {
-      FairMQMessage* heartbeatMsg = fTransportFactory->CreateMessage();
+    FairMQMessage* headerPart = fTransportFactory->CreateMessage(h, sizeof(f2eHeader));
 
-      if (fChannels["data-in"].at(1).Receive(heartbeatMsg) > 0) {
-        string reply = string(static_cast<char*>(heartbeatMsg->GetData()), heartbeatMsg->GetSize());
-        updateIPHeartbeat(reply);
-      }
+    fHeaderBuffer.push(headerPart);
 
-      delete heartbeatMsg;
-    }
+    // save the arrival time of the message.
+    fArrivalTime.push(boost::posix_time::microsec_clock::local_time());
 
-    // input 2 - data (in test-mode: signal with a timeframe ID)
-    if (poller->CheckInput(2)) {
-
-      // initialize f2e header
-      f2eHeader* h = new f2eHeader;
-
-      if (fTestMode > 0) {
-        // test-mode: receive and store id part in the buffer.
-        FairMQMessage* idPart = fTransportFactory->CreateMessage();
-        fChannels["data-in"].at(2).Receive(idPart);
-
-        h->timeFrameId = *(reinterpret_cast<uint64_t*>(idPart->GetData()));
-        h->flpIndex = fIndex;
-
-        delete idPart;
-      } else {
-        // regular mode: use the id generated locally
-        h->timeFrameId = timeFrameId;
-        // h->flpIndex = stoi(fId);
-        h->flpIndex = fIndex;
-
-        if (++timeFrameId == UINT64_MAX - 1) {
-          timeFrameId = 0;
-        }
-      }
-
-      FairMQMessage* headerPart = fTransportFactory->CreateMessage(h, sizeof(f2eHeader));
-
-      fHeaderBuffer.push(headerPart);
-
-      // save the arrival time of the message.
-      fArrivalTime.push(boost::posix_time::microsec_clock::local_time());
-
-      if (fTestMode > 0) {
-        // test-mode: initialize and store data part in the buffer.
-        FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-        dataPart->Copy(baseMsg);
-        fDataBuffer.push(dataPart);
-      } else {
-        // regular mode: receive data part from input
-        FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-        fChannels["data-in"].at(2).Receive(dataPart);
-        fDataBuffer.push(dataPart);
-      }
+    if (fTestMode > 0) {
+      // test-mode: initialize and store data part in the buffer.
+      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
+      dataPart->Copy(baseMsg);
+      fDataBuffer.push(dataPart);
+    } else {
+      // regular mode: receive data part from input
+      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
+      fChannels.at("data-in").at(0).Receive(dataPart);
+      fDataBuffer.push(dataPart);
     }
 
     // LOG(INFO) << fDataBuffer.size();
@@ -179,6 +166,9 @@ void FLPSender::Run()
   }
 
   delete baseMsg;
+
+  heartbeatReceiver.interrupt();
+  heartbeatReceiver.join();
 }
 
 inline void FLPSender::sendFrontData()
@@ -186,30 +176,31 @@ inline void FLPSender::sendFrontData()
   f2eHeader h = *(reinterpret_cast<f2eHeader*>(fHeaderBuffer.front()->GetData()));
   uint64_t currentTimeframeId = h.timeFrameId;
 
-  int SNDMORE = fChannels["data-in"].at(0).fSocket->SNDMORE;
-  int NOBLOCK = fChannels["data-in"].at(0).fSocket->NOBLOCK;
-
   // for which EPN is the message?
-  int direction = currentTimeframeId % fChannels["data-out"].size();
+  int direction = currentTimeframeId % fNumEPNs;
   // LOG(INFO) << "Sending event " << currentTimeframeId << " to EPN#" << direction << "...";
 
   ptime currentTime = boost::posix_time::microsec_clock::local_time();
-  ptime storedHeartbeat = GetProperty(OutputHeartbeat, storedHeartbeat, direction);
+  ptime storedHeartbeat;
+  {
+    boost::shared_lock<boost::shared_mutex> lock(fHeartbeatMutex);
+    storedHeartbeat = fHeartbeats[fChannels.at("data-out").at(direction).GetAddress()];
+  }
 
-  // if the heartbeat from the corresponding EPN is within timeout period, send the data.
-  if (to_simple_string(storedHeartbeat) != "not-a-date-time" ||
-      (currentTime - storedHeartbeat).total_milliseconds() < fHeartbeatTimeoutInMs) {
-    if(fChannels["data-out"].at(direction).Send(fHeaderBuffer.front(), SNDMORE|NOBLOCK) == 0) {
-      LOG(ERROR) << "Could not queue ID part of event #" << currentTimeframeId << " without blocking";
-    }
-    if (fChannels["data-out"].at(direction).Send(fDataBuffer.front(), NOBLOCK) == 0) {
-      LOG(ERROR) << "Could not send message with event #" << currentTimeframeId << " without blocking";
-    }
+  // if the heartbeat is too old, discard the data.
+  if (to_simple_string(storedHeartbeat) == "not-a-date-time" ||
+      (currentTime - storedHeartbeat).total_milliseconds() > fHeartbeatTimeoutInMs) {
+    LOG(WARN) << "Heartbeat too old for EPN#" << direction << ", discarding message.";
     fHeaderBuffer.pop();
     fArrivalTime.pop();
     fDataBuffer.pop();
-  } else { // if the heartbeat is too old, discard the data.
-    LOG(WARN) << "Heartbeat too old for EPN#" << direction << ", discarding message.";
+  } else { // if the heartbeat from the corresponding EPN is within timeout period, send the data.
+    if (fChannels.at("data-out").at(direction).Send(fHeaderBuffer.front(), fSndMoreFlag|fNoBlockFlag) == 0) {
+      LOG(ERROR) << "Could not queue ID part of event #" << currentTimeframeId << " without blocking";
+    }
+    if (fChannels.at("data-out").at(direction).Send(fDataBuffer.front(), fNoBlockFlag) == 0) {
+      LOG(ERROR) << "Could not send message with event #" << currentTimeframeId << " without blocking";
+    }
     fHeaderBuffer.pop();
     fArrivalTime.pop();
     fDataBuffer.pop();
@@ -277,25 +268,5 @@ int FLPSender::GetProperty(const int key, const int default_/*= 0*/)
       return fEventSize;
     default:
       return FairMQDevice::GetProperty(key, default_);
-  }
-}
-
-// Method for setting properties represented as a heartbeat.
-void FLPSender::SetProperty(const int key, const ptime value, const int slot /*= 0*/)
-{
-  switch (key) {
-    case OutputHeartbeat:
-      fOutputHeartbeat.erase(fOutputHeartbeat.begin() + slot);
-      fOutputHeartbeat.insert(fOutputHeartbeat.begin() + slot, value);
-      break;
-  }
-}
-
-// Method for getting properties represented as a heartbeat.
-ptime FLPSender::GetProperty(const int key, const ptime default_, const int slot /*= 0*/)
-{
-  switch (key) {
-    case OutputHeartbeat:
-      return fOutputHeartbeat.at(slot);
   }
 }

@@ -93,7 +93,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   desc.add_options()
     ("id", bpo::value<string>()->required(), "Device ID")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
-    ("num-outputs", bpo::value<int>()->required(), "Number of EPN output sockets")
+    ("num-outputs", bpo::value<int>()->default_value(0), "Number of EPN output sockets (DEPRECATED)") // deprecated
     ("heartbeat-interval", bpo::value<int>()->default_value(5000), "Heartbeat interval in milliseconds")
     ("buffer-timeout", bpo::value<int>()->default_value(5000), "Buffer timeout in milliseconds")
     ("num-flps", bpo::value<int>()->required(), "Number of FLPs")
@@ -178,22 +178,28 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  LOG(INFO) << "EPN Receiver, ID: " << options.id << " (PID: " << getpid() << ")";
+
   map<string,string> IPs;
   FairMQ::tools::getHostIPs(IPs);
 
   stringstream ss;
 
   if (IPs.count("ib0")) {
-    ss << "tcp://" << IPs["ib0"] << ":5655";
+    ss << "tcp://" << IPs["ib0"];
+  } else if (IPs.count("eth0")) {
+    ss << "tcp://" << IPs["eth0"];
   } else {
-    ss << "tcp://" << IPs["eth0"] << ":5655";
+    LOG(ERROR) << "Could not find ib0 or eth0 interface";
+    exit(EXIT_FAILURE);
   }
+
+  LOG(INFO) << "Running on " << ss.str();
+
+  ss << ":5655";
 
   string initialInputAddress  = ss.str();
   string initialOutputAddress = ss.str();
-
-  LOG(INFO) << "EPN Receiver";
-  LOG(INFO) << "PID: " << getpid();
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 
@@ -297,8 +303,6 @@ int main(int argc, char** argv)
 
   epn.ChangeState("RUN");
   epn.WaitForEndOfState("RUN");
-
-  epn.ChangeState("STOP");
 
   epn.ChangeState("RESET_TASK");
   epn.WaitForEndOfState("RESET_TASK");

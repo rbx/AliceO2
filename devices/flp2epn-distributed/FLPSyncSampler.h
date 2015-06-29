@@ -44,6 +44,7 @@ class FLPSyncSampler : public FairMQDevice
     virtual int GetProperty(const int key, const int default_ = 0);
 
   protected:
+    virtual void InitTask();
     virtual void Run();
 
     int fEventRate;

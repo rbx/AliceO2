@@ -54,8 +54,7 @@ typedef struct DeviceOptions
   int flpIndex;
   int eventSize;
   int ioThreads;
-  int numInputs;
-  int numOutputs;
+  int numEPNs;
   int heartbeatTimeoutInMs;
   int testMode;
   int sendOffset;
@@ -83,8 +82,9 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
     ("flp-index", bpo::value<int>()->default_value(0), "FLP Index (for debugging in test mode)")
     ("event-size", bpo::value<int>()->default_value(1000), "Event size in bytes")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
-    ("num-inputs", bpo::value<int>()->required(), "Number of FLP input sockets")
-    ("num-outputs", bpo::value<int>()->required(), "Number of FLP output sockets")
+    ("num-inputs", bpo::value<int>()->default_value(2), "Number of FLP input sockets")
+    ("num-outputs", bpo::value<int>(), "Number of FLP output sockets (DEPRECATED)") // deprecated
+    ("num-epns", bpo::value<int>()->default_value(0), "Number of EPNs")
     ("heartbeat-timeout", bpo::value<int>()->default_value(20000), "Heartbeat timeout in milliseconds")
     ("test-mode", bpo::value<int>()->default_value(0),"Run in test mode")
     ("send-offset", bpo::value<int>()->default_value(0), "Offset for staggered sending")
@@ -114,8 +114,13 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   if (vm.count("flp-index"))           { _options->flpIndex             = vm["flp-index"].as<int>(); }
   if (vm.count("event-size"))          { _options->eventSize            = vm["event-size"].as<int>(); }
   if (vm.count("io-threads"))          { _options->ioThreads            = vm["io-threads"].as<int>(); }
-  if (vm.count("num-inputs"))          { _options->numInputs            = vm["num-inputs"].as<int>(); }
-  if (vm.count("num-outputs"))         { _options->numOutputs           = vm["num-outputs"].as<int>(); }
+
+  if (vm.count("num-epns"))            { _options->numEPNs              = vm["num-epns"].as<int>(); }
+  if (vm.count("num-outputs")) {
+    _options->numEPNs = vm["num-outputs"].as<int>();
+    LOG(WARN) << "configured via num-outputs command line option, it is deprecated. Use num-epns instead.";
+  }
+
   if (vm.count("heartbeat-timeout"))   { _options->heartbeatTimeoutInMs = vm["heartbeat-timeout"].as<int>(); }
   if (vm.count("test-mode"))           { _options->testMode             = vm["test-mode"].as<int>(); }
   if (vm.count("send-offset"))         { _options->sendOffset           = vm["send-offset"].as<int>(); }
@@ -124,7 +129,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   if (vm.count("input-buff-size"))     { _options->inputBufSize         = vm["input-buff-size"].as<vector<int>>(); }
   if (vm.count("input-method"))        { _options->inputMethod          = vm["input-method"].as<vector<string>>(); }
   // if (vm.count("input-address"))      { _options->inputAddress         = vm["input-address"].as<vector<string>>(); }
-  if (vm.count("input-rate-logging"))      { _options->inputRateLogging     = vm["input-rate-logging"].as<vector<int>>(); }
+  if (vm.count("input-rate-logging"))  { _options->inputRateLogging     = vm["input-rate-logging"].as<vector<int>>(); }
 
   if (vm.count("output-socket-type"))  { _options->outputSocketType     = vm["output-socket-type"].as<string>(); }
   if (vm.count("output-buff-size"))    { _options->outputBufSize        = vm["output-buff-size"].as<int>(); }
@@ -148,18 +153,32 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  if (options.numEPNs <= 0) {
+    LOG(ERROR) << "Configured with 0 EPNs, exiting. Use --num-epns program option.";
+    exit(EXIT_FAILURE);
+  }
+
+  LOG(INFO) << "FLP Sender, ID: " << options.id << " (PID: " << getpid() << ")";
+
   map<string,string> IPs;
   FairMQ::tools::getHostIPs(IPs);
 
   stringstream ss;
 
   if (IPs.count("ib0")) {
-    ss << "tcp://" << IPs["ib0"] << ":5655";
+    ss << "tcp://" << IPs["ib0"];
+  } else if (IPs.count("eth0")) {
+    ss << "tcp://" << IPs["eth0"];
   } else {
-    ss << "tcp://" << IPs["eth0"] << ":5655";
+    LOG(ERROR) << "Could not find ib0 or eth0 interface";
+    exit(EXIT_FAILURE);
   }
 
-  string initialInputAddress = ss.str();
+  LOG(INFO) << "Running on " << ss.str();
+
+  ss << ":5655";
+
+  string initialInputAddress  = ss.str();
 
   // DDS
   // Waiting for properties
@@ -180,9 +199,6 @@ int main(int argc, char** argv)
     }
   }
 
-  LOG(INFO) << "FLP Sender";
-  LOG(INFO) << "PID: " << getpid();
-
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 
   flp.SetTransport(transportFactory);
@@ -196,29 +212,33 @@ int main(int argc, char** argv)
   flp.SetProperty(FLPSender::TestMode, options.testMode);
   flp.SetProperty(FLPSender::SendOffset, options.sendOffset);
 
-  // configure inputs
-  for (int i = 0; i < options.inputSocketType.size(); ++i) {
-    FairMQChannel inputChannel;
-    inputChannel.UpdateType(options.inputSocketType.at(i));
-    inputChannel.UpdateMethod(options.inputMethod.at(i));
-    inputChannel.UpdateSndBufSize(options.inputBufSize.at(i));
-    inputChannel.UpdateRcvBufSize(options.inputBufSize.at(i));
-    inputChannel.UpdateRateLogging(options.inputRateLogging.at(i));
-    flp.fChannels["data-in"].push_back(inputChannel);
-  }
+  FairMQChannel hbInputChannel;
+  hbInputChannel.UpdateType(options.inputSocketType.at(0));
+  hbInputChannel.UpdateMethod(options.inputMethod.at(0));
+  hbInputChannel.UpdateSndBufSize(options.inputBufSize.at(0));
+  hbInputChannel.UpdateRcvBufSize(options.inputBufSize.at(0));
+  hbInputChannel.UpdateRateLogging(options.inputRateLogging.at(0));
+  flp.fChannels["heartbeat-in"].push_back(hbInputChannel);
 
-  flp.fChannels["data-in"].at(0).UpdateAddress(initialInputAddress); // commands
-  flp.fChannels["data-in"].at(1).UpdateAddress(initialInputAddress); // heartbeats
+  FairMQChannel dataInputChannel;
+  dataInputChannel.UpdateType(options.inputSocketType.at(1));
+  dataInputChannel.UpdateMethod(options.inputMethod.at(1));
+  dataInputChannel.UpdateSndBufSize(options.inputBufSize.at(1));
+  dataInputChannel.UpdateRcvBufSize(options.inputBufSize.at(1));
+  dataInputChannel.UpdateRateLogging(options.inputRateLogging.at(1));
+  flp.fChannels["data-in"].push_back(dataInputChannel);
+
+  flp.fChannels["heartbeat-in"].at(0).UpdateAddress(initialInputAddress); // heartbeats
   if (options.testMode == 1) {
     // In test mode, assign address that was received from the FLPSyncSampler via DDS.
-    flp.fChannels["data-in"].at(2).UpdateAddress(values.begin()->second); // FLPSyncSampler signal
+    flp.fChannels["data-in"].at(0).UpdateAddress(values.begin()->second); // FLPSyncSampler signal
   } else {
     // In regular mode, assign placeholder address, that will be set when binding.
-    flp.fChannels["data-in"].at(2).UpdateAddress(initialInputAddress); // data
+    flp.fChannels["data-in"].at(0).UpdateAddress(initialInputAddress); // data
   }
 
   // configure outputs
-  for (int i = 0; i < options.numOutputs; ++i) {
+  for (int i = 0; i < options.numEPNs; ++i) {
     FairMQChannel outputChannel(options.outputSocketType, options.outputMethod, "");
     outputChannel.UpdateSndBufSize(options.outputBufSize);
     outputChannel.UpdateRcvBufSize(options.outputBufSize);
@@ -231,10 +251,10 @@ int main(int argc, char** argv)
 
   if (options.testMode == 0) {
     // In regular mode, advertise the bound data input address to the DDS.
-    ddsKeyValue.putValue("FLPSenderInputAddress", flp.fChannels["data-in"].at(2).GetAddress());
+    ddsKeyValue.putValue("FLPSenderInputAddress", flp.fChannels["data-in"].at(0).GetAddress());
   }
 
-  ddsKeyValue.putValue("FLPSenderHeartbeatInputAddress", flp.fChannels["data-in"].at(1).GetAddress());
+  ddsKeyValue.putValue("FLPSenderHeartbeatInputAddress", flp.fChannels["heartbeat-in"].at(0).GetAddress());
 
   dds::key_value::CKeyValue::valuesMap_t values2;
 
@@ -245,7 +265,7 @@ int main(int argc, char** argv)
 
   ddsKeyValue.subscribe([&keyCondition](const string& /*_key*/, const string& /*_value*/) {keyCondition.notify_all();});
   ddsKeyValue.getValues("EPNReceiverInputAddress", &values2);
-  while (values2.size() != options.numOutputs) {
+  while (values2.size() != options.numEPNs) {
     unique_lock<mutex> lock(keyMutex);
     keyCondition.wait_until(lock, chrono::system_clock::now() + chrono::milliseconds(1000));
     ddsKeyValue.getValues("EPNReceiverInputAddress", &values2);
@@ -254,7 +274,7 @@ int main(int argc, char** argv)
 
   // Assign the received EPNReceiver input addresses to the device.
   dds::key_value::CKeyValue::valuesMap_t::const_iterator it_values2 = values2.begin();
-  for (int i = 0; i < options.numOutputs; ++i) {
+  for (int i = 0; i < options.numEPNs; ++i) {
     flp.fChannels["data-out"].at(i).UpdateAddress(it_values2->second);
     it_values2++;
   }
@@ -268,8 +288,6 @@ int main(int argc, char** argv)
 
   flp.ChangeState("RUN");
   flp.WaitForEndOfState("RUN");
-
-  flp.ChangeState("STOP");
 
   flp.ChangeState("RESET_TASK");
   flp.WaitForEndOfState("RESET_TASK");
