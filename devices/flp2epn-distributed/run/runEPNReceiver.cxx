@@ -73,7 +73,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   desc.add_options()
     ("id", bpo::value<string>()->required(), "Device ID")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
-    ("num-outputs", bpo::value<int>()->required(), "Number of EPN output sockets")
+    ("num-outputs", bpo::value<int>()->default_value(0), "Number of EPN output sockets (DEPRECATED)") // deprecated
     ("heartbeat-interval", bpo::value<int>()->default_value(5000), "Heartbeat interval in milliseconds")
     ("buffer-timeout", bpo::value<int>()->default_value(1000), "Buffer timeout in milliseconds")
     ("num-flps", bpo::value<int>()->required(), "Number of FLPs")

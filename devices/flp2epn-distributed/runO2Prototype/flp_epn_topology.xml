@@ -26,7 +26,7 @@
     </decltask>
 
     <decltask id="flpSender">
-        <exe reachable="true">/home/arybalch/alice/AliceO2/build/bin/flpSender_dds --id FLP%taskIndex% --event-size 100000 --num-inputs 3 --num-outputs 64 --input-socket-type sub --input-buff-size 10 --input-method bind --input-rate-logging 0 --input-socket-type sub --input-buff-size 10 --input-method bind --input-rate-logging 0 --input-socket-type sub --input-buff-size 10 --input-method connect --input-rate-logging 0 --output-socket-type push --output-buff-size 10 --output-method connect --output-rate-logging 1 --test-mode 1</exe>
+        <exe reachable="true">/home/arybalch/alice/AliceO2/build/bin/flpSender_dds --id FLP%taskIndex% --event-size 100000 --num-inputs 3 --num-epns 64 --input-socket-type sub --input-buff-size 10 --input-method bind --input-rate-logging 0 --input-socket-type sub --input-buff-size 10 --input-method bind --input-rate-logging 0 --input-socket-type sub --input-buff-size 10 --input-method connect --input-rate-logging 0 --output-socket-type push --output-buff-size 10 --output-method connect --output-rate-logging 1 --test-mode 1</exe>
         <requirement>FLPSenderHost</requirement>
         <properties>
             <id access="read">FLPSyncSamplerOutputAddress</id>
@@ -36,7 +36,7 @@
     </decltask>
 
     <decltask id="epnReceiver">
-        <exe reachable="true">/home/arybalch/alice/AliceO2/build/bin/epnReceiver_dds --id EPN%taskIndex% --num-outputs 66 --num-flps 64 --input-socket-type pull --input-buff-size 10 --input-method bind --input-rate-logging 1 --output-socket-type pub --output-buff-size 10 --output-method connect --output-rate-logging 0 --nextstep-socket-type pub --nextstep-buff-size 10 --nextstep-method bind --nextstep-rate-logging 0 --rttack-socket-type push --rttack-buff-size 100 --rttack-method connect --rttack-rate-logging 0 --test-mode 1</exe>
+        <exe reachable="true">/home/arybalch/alice/AliceO2/build/bin/epnReceiver_dds --id EPN%taskIndex% --num-flps 64 --input-socket-type pull --input-buff-size 10 --input-method bind --input-rate-logging 1 --output-socket-type pub --output-buff-size 10 --output-method connect --output-rate-logging 0 --nextstep-socket-type pub --nextstep-buff-size 10 --nextstep-method bind --nextstep-rate-logging 0 --rttack-socket-type push --rttack-buff-size 100 --rttack-method connect --rttack-rate-logging 0 --test-mode 1</exe>
         <requirement>EPNReceiverHost</requirement>
         <properties>
             <id access="read">FLPSenderHeartbeatInputAddress</id>

@@ -47,7 +47,7 @@ typedef struct DeviceOptions
   int eventSize;
   int ioThreads;
   int numInputs;
-  int numOutputs;
+  int numEPNs;
   int heartbeatTimeoutInMs;
   int testMode;
   int sendOffset;
@@ -78,7 +78,8 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
     ("event-size", bpo::value<int>()->default_value(1000), "Event size in bytes")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
     ("num-inputs", bpo::value<int>()->required(), "Number of FLP input sockets")
-    ("num-outputs", bpo::value<int>()->required(), "Number of FLP output sockets")
+    ("num-outputs", bpo::value<int>(), "Number of FLP output sockets (DEPRECATED)") // deprecated
+    ("num-epns", bpo::value<int>()->default_value(0), "Number of EPNs")
     ("heartbeat-timeout", bpo::value<int>()->default_value(20000), "Heartbeat timeout in milliseconds")
     ("test-mode", bpo::value<int>()->default_value(0), "Run in test mode")
     ("send-offset", bpo::value<int>()->default_value(0), "Offset for staggered sending")
@@ -109,7 +110,13 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   if (vm.count("event-size"))          { _options->eventSize            = vm["event-size"].as<int>(); }
   if (vm.count("io-threads"))          { _options->ioThreads            = vm["io-threads"].as<int>(); }
   if (vm.count("num-inputs"))          { _options->numInputs            = vm["num-inputs"].as<int>(); }
-  if (vm.count("num-outputs"))         { _options->numOutputs           = vm["num-outputs"].as<int>(); }
+
+  if (vm.count("num-epns"))            { _options->numEPNs              = vm["num-epns"].as<int>(); }
+  if (vm.count("num-outputs")) {
+    _options->numEPNs = vm["num-outputs"].as<int>();
+    LOG(WARN) << "configured via num-outputs command line option, it is deprecated. Use num-epns instead.";
+  }
+
   if (vm.count("heartbeat-timeout"))   { _options->heartbeatTimeoutInMs = vm["heartbeat-timeout"].as<int>(); }
   if (vm.count("test-mode"))           { _options->testMode             = vm["test-mode"].as<int>(); }
   if (vm.count("send-offset"))         { _options->sendOffset           = vm["send-offset"].as<int>(); }
@@ -140,6 +147,11 @@ int main(int argc, char** argv)
   } catch (const exception& e) {
     LOG(ERROR) << e.what();
     return 1;
+  }
+
+  if (options.numEPNs <= 0) {
+    LOG(ERROR) << "Configured with 0 EPNs, exiting. Use --num-epns program option.";
+    exit(EXIT_FAILURE);
   }
 
   LOG(INFO) << "PID: " << getpid();
