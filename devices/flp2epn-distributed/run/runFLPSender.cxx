@@ -154,7 +154,7 @@ int main(int argc, char** argv)
     exit(EXIT_FAILURE);
   }
 
-  LOG(INFO) << "PID: " << getpid();
+  LOG(INFO) << "FLP Sender, ID: " << options.id << " (PID: " << getpid() << ")";
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 

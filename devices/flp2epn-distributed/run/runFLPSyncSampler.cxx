@@ -124,7 +124,7 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  LOG(INFO) << "PID: " << getpid();
+  LOG(INFO) << "FLP Sync Sampler, ID: " << options.id << " (PID: " << getpid() << ")";
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 

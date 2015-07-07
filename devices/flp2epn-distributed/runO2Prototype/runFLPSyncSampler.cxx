@@ -132,32 +132,29 @@ int main(int argc, char** argv)
     return 1;
   }
 
+  LOG(INFO) << "FLP Sync Sampler, ID: " << options.id << " (PID: " << getpid() << ")";
+
   map<string,string> IPs;
   FairMQ::tools::getHostIPs(IPs);
 
   stringstream ss;
 
   if (IPs.count("ib0")) {
-    ss << "tcp://" << IPs["ib0"] << ":5655";
-    LOG(INFO) << ss.str();
+    ss << "tcp://" << IPs["ib0"];
   } else if (IPs.count("eth0")) {
-    ss << "tcp://" << IPs["eth0"] << ":5655";
-    LOG(INFO) << ss.str();
-  } else if (IPs.count("wlan0")) {
-    ss << "tcp://" << IPs["wlan0"] << ":5655";
-    LOG(INFO) << ss.str();
+    ss << "tcp://" << IPs["eth0"];
   } else {
-    LOG(INFO) << ss.str();
-    LOG(ERROR) << "Could not find ib0, eth0 or wlan0";
+    LOG(ERROR) << "Could not find ib0 or eth0 interface";
     exit(EXIT_FAILURE);
   }
+
+  LOG(INFO) << "Running on " << ss.str();
+
+  ss << ":5655";
 
   string initialInputAddress  = ss.str();
   string initialOutputAddress = ss.str();
 
-  LOG(INFO) << "FLP Sync Sampler";
-  LOG(INFO) << "PID: " << getpid();
-  LOG(INFO) << "Device ID: " << options.id;
 
   FairMQTransportFactory* transportFactory = new FairMQTransportFactoryZMQ();
 
@@ -194,8 +191,6 @@ int main(int argc, char** argv)
 
   sampler.ChangeState("RUN");
   sampler.WaitForEndOfState("RUN");
-
-  sampler.ChangeState("STOP");
 
   sampler.ChangeState("RESET_TASK");
   sampler.WaitForEndOfState("RESET_TASK");
