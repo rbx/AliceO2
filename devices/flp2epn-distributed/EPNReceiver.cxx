@@ -142,7 +142,7 @@ void EPNReceiver::Run()
               fTimeframeBuffer[id].count++;
               fTimeframeBuffer[id].parts.push_back(dataPart);
             } else {
-              LOG(ERROR) << "no data received from input socket 0";
+              LOG(ERROR) << "no data received from input socket";
               delete dataPart;
             }
             // PrintBuffer(fTimeframeBuffer);

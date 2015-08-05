@@ -103,6 +103,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 int main(int argc, char** argv)
 {
   EPNReceiver epn;
+  epn.CatchSignals();
 
   DeviceOptions_t options;
   try {

@@ -22,7 +22,7 @@ void O2EpnMerger::Run()
   bool received = false;
   int NoOfMsgParts = fChannels["data-in"].size() - 1;
 
-  while (GetCurrentState() == RUNNING) {
+  while (CheckCurrentState(RUNNING)) {
     FairMQMessage* msg = fTransportFactory->CreateMessage();
 
     poller->Poll(100);
@@ -51,7 +51,7 @@ void O2EpnMerger::Run()
 
     // editor comment: i think following block shouldn't be here, but i'll just leave it here...
 
-  while (GetCurrentState() == RUNNING) {
+  while (CheckCurrentState(RUNNING)) {
     FairMQMessage* msg = fTransportFactory->CreateMessage();
 
     fChannels["data-in"].at(0).Receive(msg);

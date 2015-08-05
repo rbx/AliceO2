@@ -139,6 +139,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 int main(int argc, char** argv)
 {
   FLPSender flp;
+  flp.CatchSignals();
 
   DeviceOptions_t options;
   try {

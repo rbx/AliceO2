@@ -26,7 +26,7 @@ void FrameBuilder::Run()
   fNumInputs = fChannels.at("data-in").size();
   int noOfMsgParts = fNumInputs - 1;
 
-  while (GetCurrentState() == RUNNING) {
+  while (CheckCurrentState(RUNNING)) {
     FairMQMessage* msg = fTransportFactory->CreateMessage();
 
     poller->Poll(100);

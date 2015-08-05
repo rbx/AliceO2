@@ -26,28 +26,6 @@
 using namespace std;
 using namespace AliceO2::Devices;
 
-EPNReceiver epn;
-
-static void s_signal_handler (int signal)
-{
-  cout << endl << "Caught signal " << signal << endl;
-
-  epn.ChangeState(EPNReceiver::END);
-
-  cout << "Shutdown complete. Bye!" << endl;
-  exit(1);
-}
-
-static void s_catch_signals (void)
-{
-  struct sigaction action;
-  action.sa_handler = s_signal_handler;
-  action.sa_flags = 0;
-  sigemptyset(&action.sa_mask);
-  sigaction(SIGINT, &action, NULL);
-  sigaction(SIGTERM, &action, NULL);
-}
-
 typedef struct DeviceOptions
 {
   string id;
@@ -167,7 +145,8 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 
 int main(int argc, char** argv)
 {
-  s_catch_signals();
+  EPNReceiver epn;
+  epn.CatchSignals();
 
   DeviceOptions_t options;
   try {

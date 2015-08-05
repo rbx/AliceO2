@@ -91,6 +91,7 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
 int main(int argc, char** argv)
 {
   FLPSyncSampler sampler;
+  sampler.CatchSignals();
 
   DeviceOptions_t options;
   try {
