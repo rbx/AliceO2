@@ -46,11 +46,13 @@ void FLPSyncSampler::Run()
 
   uint64_t timeFrameId = 0;
 
+  FairMQChannel& dataOutputChannel = fChannels.at("data-out").at(0);
+
   while (CheckCurrentState(RUNNING)) {
     FairMQMessage* msg = fTransportFactory->CreateMessage(sizeof(uint64_t));
     memcpy(msg->GetData(), &timeFrameId, sizeof(uint64_t));
 
-    if (fChannels.at("data-out").at(0).Send(msg, NOBLOCK) == 0) {
+    if (dataOutputChannel.Send(msg, NOBLOCK) == 0) {
       LOG(ERROR) << "Could not send signal without blocking";
     }
 
@@ -59,8 +61,6 @@ void FLPSyncSampler::Run()
     if (++timeFrameId == UINT64_MAX - 1) {
       timeFrameId = 0;
     }
-
-    if (timeFrameId == 10000) break;
 
     --fEventCounter;
 
@@ -83,7 +83,7 @@ void FLPSyncSampler::Run()
 
 void FLPSyncSampler::ListenForAcks()
 {
-  FairMQPoller* poller = fTransportFactory->CreatePoller(fChannels["data-in"]);
+  FairMQPoller* poller = fTransportFactory->CreatePoller(fChannels["ack-in"]);
 
   uint64_t id = 0;
 
@@ -98,7 +98,7 @@ void FLPSyncSampler::ListenForAcks()
       if (poller->CheckInput(0)) {
         FairMQMessage* idMsg = fTransportFactory->CreateMessage();
 
-        if (fChannels.at("data-in").at(0).Receive(idMsg) > 0) {
+        if (fChannels.at("ack-in").at(0).Receive(idMsg) > 0) {
           id = *(reinterpret_cast<uint64_t*>(idMsg->GetData()));
           fTimeframeRTT.at(id).end = boost::posix_time::microsec_clock::local_time();
           // store values in a file
@@ -107,8 +107,6 @@ void FLPSyncSampler::ListenForAcks()
 
           LOG(INFO) << "Timeframe #" << id << " acknowledged after "
                     << (fTimeframeRTT.at(id).end - fTimeframeRTT.at(id).start).total_microseconds() << " μs.";
-
-          if (id == 10000) break;
         }
       }
     } catch (boost::thread_interrupted&) {

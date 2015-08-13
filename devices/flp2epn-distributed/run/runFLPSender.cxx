@@ -29,23 +29,23 @@ typedef struct DeviceOptions
   int sendOffset;
   int sendDelay;
 
-  string dataInputSocketType;
-  int dataInputBufSize;
-  string dataInputMethod;
-  string dataInputAddress;
-  int dataInputRateLogging;
+  string dataInSocketType;
+  int dataInBufSize;
+  string dataInMethod;
+  string dataInAddress;
+  int dataInRateLogging;
 
-  string hbInputSocketType;
-  int hbInputBufSize;
-  string hbInputMethod;
-  string hbInputAddress;
-  int hbInputRateLogging;
+  string dataOutSocketType;
+  int dataOutBufSize;
+  string dataOutMethod;
+  vector<string> dataOutAddress;
+  int dataOutRateLogging;
 
-  vector<string> outputSocketType;
-  vector<int> outputBufSize;
-  vector<string> outputMethod;
-  vector<string> outputAddress;
-  vector<int> outputRateLogging;
+  string hbInSocketType;
+  int hbInBufSize;
+  string hbInMethod;
+  string hbInAddress;
+  int hbInRateLogging;
 } DeviceOptions_t;
 
 inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
@@ -61,31 +61,29 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
     ("flp-index", bpo::value<int>()->default_value(0), "FLP Index (for debugging in test mode)")
     ("event-size", bpo::value<int>()->default_value(1000), "Event size in bytes")
     ("io-threads", bpo::value<int>()->default_value(1), "Number of I/O threads")
-    ("num-inputs", bpo::value<int>()->default_value(2), "Number of FLP input sockets")
-    ("num-outputs", bpo::value<int>(), "Number of FLP output sockets (DEPRECATED)") // deprecated
-    ("num-epns", bpo::value<int>()->default_value(0), "Number of EPNs")
+    ("num-epns", bpo::value<int>()->required(), "Number of EPNs")
     ("heartbeat-timeout", bpo::value<int>()->default_value(20000), "Heartbeat timeout in milliseconds")
     ("test-mode", bpo::value<int>()->default_value(0), "Run in test mode")
     ("send-offset", bpo::value<int>()->default_value(0), "Offset for staggered sending")
     ("send-delay", bpo::value<int>()->default_value(8), "Delay for staggered sending")
 
-    ("data-input-socket-type", bpo::value<string>()->required(), "Data input socket type: sub/pull")
-    ("data-input-buff-size", bpo::value<int>()->required(), "Data input buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
-    ("data-input-method", bpo::value<string>()->required(), "Data input method: bind/connect")
-    ("data-input-address", bpo::value<string>()->required(), "Data input address, e.g.: \"tcp://localhost:5555\"")
-    ("data-input-rate-logging", bpo::value<int>()->required(), "Log data input rate on socket, 1/0")
+    ("data-in-socket-type", bpo::value<string>()->default_value("pull"), "Data input socket type: sub/pull")
+    ("data-in-buff-size", bpo::value<int>()->default_value(10), "Data input buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
+    ("data-in-method", bpo::value<string>()->default_value("bind"), "Data input method: bind/connect")
+    ("data-in-address", bpo::value<string>()->required(), "Data input address, e.g.: \"tcp://localhost:5555\"")
+    ("data-in-rate-logging", bpo::value<int>()->default_value(1), "Log data input rate on socket, 1/0")
 
-    ("hb-input-socket-type", bpo::value<string>()->default_value("sub"), "Heartbeat input socket type: sub/pull")
-    ("hb-input-buff-size", bpo::value<int>()->default_value(100), "Heartbeat input buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
-    ("hb-input-method", bpo::value<string>()->default_value("bind"), "Heartbeat input method: bind/connect")
-    ("hb-input-address", bpo::value<string>()->required(), "Heartbeat input address, e.g.: \"tcp://localhost:5555\"")
-    ("hb-input-rate-logging", bpo::value<int>()->default_value(0), "Log heartbeat input rate on socket, 1/0")
+    ("data-out-socket-type", bpo::value<string>()->default_value("push"), "Output socket type: pub/push")
+    ("data-out-buff-size", bpo::value<int>()->default_value(10), "Output buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
+    ("data-out-method", bpo::value<string>()->default_value("connect"), "Output method: bind/connect")
+    ("data-out-address", bpo::value<vector<string>>()->required(), "Output address, e.g.: \"tcp://localhost:5555\"")
+    ("data-out-rate-logging", bpo::value<int>()->default_value(1), "Log output rate on socket, 1/0")
 
-    ("output-socket-type", bpo::value<vector<string>>()->required(), "Output socket type: pub/push")
-    ("output-buff-size", bpo::value<vector<int>>()->required(), "Output buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
-    ("output-method", bpo::value<vector<string>>()->required(), "Output method: bind/connect")
-    ("output-address", bpo::value<vector<string>>()->required(), "Output address, e.g.: \"tcp://localhost:5555\"")
-    ("output-rate-logging", bpo::value<vector<int>>()->required(), "Log output rate on socket, 1/0")
+    ("hb-in-socket-type", bpo::value<string>()->default_value("sub"), "Heartbeat in socket type: sub/pull")
+    ("hb-in-buff-size", bpo::value<int>()->default_value(100), "Heartbeat in buffer size in number of messages (ZeroMQ)/bytes(nanomsg)")
+    ("hb-in-method", bpo::value<string>()->default_value("bind"), "Heartbeat in method: bind/connect")
+    ("hb-in-address", bpo::value<string>()->required(), "Heartbeat in address, e.g.: \"tcp://localhost:5555\"")
+    ("hb-in-rate-logging", bpo::value<int>()->default_value(0), "Log heartbeat in rate on socket, 1/0")
 
     ("help", "Print help messages");
 
@@ -105,33 +103,29 @@ inline bool parse_cmd_line(int _argc, char* _argv[], DeviceOptions* _options)
   if (vm.count("io-threads"))              { _options->ioThreads                 = vm["io-threads"].as<int>(); }
 
   if (vm.count("num-epns"))                { _options->numEPNs                   = vm["num-epns"].as<int>(); }
-  if (vm.count("num-outputs")) {
-    _options->numEPNs = vm["num-outputs"].as<int>();
-    LOG(WARN) << "configured via num-outputs command line option, it is deprecated. Use num-epns instead.";
-  }
 
   if (vm.count("heartbeat-timeout"))       { _options->heartbeatTimeoutInMs      = vm["heartbeat-timeout"].as<int>(); }
   if (vm.count("test-mode"))               { _options->testMode                  = vm["test-mode"].as<int>(); }
   if (vm.count("send-offset"))             { _options->sendOffset                = vm["send-offset"].as<int>(); }
   if (vm.count("send-delay"))              { _options->sendDelay                 = vm["send-delay"].as<int>(); }
 
-  if (vm.count("data-input-socket-type"))  { _options->dataInputSocketType       = vm["data-input-socket-type"].as<string>(); }
-  if (vm.count("data-input-buff-size"))    { _options->dataInputBufSize          = vm["data-input-buff-size"].as<int>(); }
-  if (vm.count("data-input-method"))       { _options->dataInputMethod           = vm["data-input-method"].as<string>(); }
-  if (vm.count("data-input-address"))      { _options->dataInputAddress          = vm["data-input-address"].as<string>(); }
-  if (vm.count("data-input-rate-logging")) { _options->dataInputRateLogging      = vm["data-input-rate-logging"].as<int>(); }
+  if (vm.count("data-in-socket-type"))  { _options->dataInSocketType       = vm["data-in-socket-type"].as<string>(); }
+  if (vm.count("data-in-buff-size"))    { _options->dataInBufSize          = vm["data-in-buff-size"].as<int>(); }
+  if (vm.count("data-in-method"))       { _options->dataInMethod           = vm["data-in-method"].as<string>(); }
+  if (vm.count("data-in-address"))      { _options->dataInAddress          = vm["data-in-address"].as<string>(); }
+  if (vm.count("data-in-rate-logging")) { _options->dataInRateLogging      = vm["data-in-rate-logging"].as<int>(); }
 
-  if (vm.count("hb-input-socket-type"))    { _options->hbInputSocketType         = vm["hb-input-socket-type"].as<string>(); }
-  if (vm.count("hb-input-buff-size"))      { _options->hbInputBufSize            = vm["hb-input-buff-size"].as<int>(); }
-  if (vm.count("hb-input-method"))         { _options->hbInputMethod             = vm["hb-input-method"].as<string>(); }
-  if (vm.count("hb-input-address"))        { _options->hbInputAddress            = vm["hb-input-address"].as<string>(); }
-  if (vm.count("hb-input-rate-logging"))   { _options->hbInputRateLogging        = vm["hb-input-rate-logging"].as<int>(); }
+  if (vm.count("data-out-socket-type"))      { _options->dataOutSocketType          = vm["data-out-socket-type"].as<string>(); }
+  if (vm.count("data-out-buff-size"))        { _options->dataOutBufSize             = vm["data-out-buff-size"].as<int>(); }
+  if (vm.count("data-out-method"))           { _options->dataOutMethod              = vm["data-out-method"].as<string>(); }
+  if (vm.count("data-out-address"))          { _options->dataOutAddress             = vm["data-out-address"].as<vector<string>>(); }
+  if (vm.count("data-out-rate-logging"))     { _options->dataOutRateLogging         = vm["data-out-rate-logging"].as<int>(); }
 
-  if (vm.count("output-socket-type"))      { _options->outputSocketType          = vm["output-socket-type"].as<vector<string>>(); }
-  if (vm.count("output-buff-size"))        { _options->outputBufSize             = vm["output-buff-size"].as<vector<int>>(); }
-  if (vm.count("output-method"))           { _options->outputMethod              = vm["output-method"].as<vector<string>>(); }
-  if (vm.count("output-address"))          { _options->outputAddress             = vm["output-address"].as<vector<string>>(); }
-  if (vm.count("output-rate-logging"))     { _options->outputRateLogging         = vm["output-rate-logging"].as<vector<int>>(); }
+  if (vm.count("hb-in-socket-type"))    { _options->hbInSocketType         = vm["hb-in-socket-type"].as<string>(); }
+  if (vm.count("hb-in-buff-size"))      { _options->hbInBufSize            = vm["hb-in-buff-size"].as<int>(); }
+  if (vm.count("hb-in-method"))         { _options->hbInMethod             = vm["hb-in-method"].as<string>(); }
+  if (vm.count("hb-in-address"))        { _options->hbInAddress            = vm["hb-in-address"].as<string>(); }
+  if (vm.count("hb-in-rate-logging"))   { _options->hbInRateLogging        = vm["hb-in-rate-logging"].as<int>(); }
 
   return true;
 }
@@ -151,9 +145,9 @@ int main(int argc, char** argv)
     return 1;
   }
 
-  if (options.numEPNs <= 0) {
-    LOG(ERROR) << "Configured with 0 EPNs, exiting. Use --num-epns program option.";
-    exit(EXIT_FAILURE);
+  if (options.numEPNs != options.dataOutAddress.size()) {
+    LOG(ERROR) << "Number of EPNs does not match the number of provided data output addresses.";
+    return 1;
   }
 
   LOG(INFO) << "FLP Sender, ID: " << options.id << " (PID: " << getpid() << ")";
@@ -172,27 +166,27 @@ int main(int argc, char** argv)
   flp.SetProperty(FLPSender::SendDelay, options.sendDelay);
 
   // configure data input channel
-  FairMQChannel dataInputChannel(options.dataInputSocketType, options.dataInputMethod, options.dataInputAddress);
-  dataInputChannel.UpdateSndBufSize(options.dataInputBufSize);
-  dataInputChannel.UpdateRcvBufSize(options.dataInputBufSize);
-  dataInputChannel.UpdateRateLogging(options.dataInputRateLogging);
-  flp.fChannels["data-in"].push_back(dataInputChannel);
-
-  // configure heartbeat input channel
-  FairMQChannel hbInputChannel(options.hbInputSocketType, options.hbInputMethod, options.hbInputAddress);
-  hbInputChannel.UpdateSndBufSize(options.hbInputBufSize);
-  hbInputChannel.UpdateRcvBufSize(options.hbInputBufSize);
-  hbInputChannel.UpdateRateLogging(options.hbInputRateLogging);
-  flp.fChannels["heartbeat-in"].push_back(hbInputChannel);
+  FairMQChannel dataInChannel(options.dataInSocketType, options.dataInMethod, options.dataInAddress);
+  dataInChannel.UpdateSndBufSize(options.dataInBufSize);
+  dataInChannel.UpdateRcvBufSize(options.dataInBufSize);
+  dataInChannel.UpdateRateLogging(options.dataInRateLogging);
+  flp.fChannels["data-in"].push_back(dataInChannel);
 
   // configure data output channels
   for (int i = 0; i < options.numEPNs; ++i) {
-    FairMQChannel outputChannel(options.outputSocketType.at(i), options.outputMethod.at(i), options.outputAddress.at(i));
-    outputChannel.UpdateSndBufSize(options.outputBufSize.at(i));
-    outputChannel.UpdateRcvBufSize(options.outputBufSize.at(i));
-    outputChannel.UpdateRateLogging(options.outputRateLogging.at(i));
-    flp.fChannels["data-out"].push_back(outputChannel);
+    FairMQChannel dataOutChannel(options.dataOutSocketType, options.dataOutMethod, options.dataOutAddress.at(i));
+    dataOutChannel.UpdateSndBufSize(options.dataOutBufSize);
+    dataOutChannel.UpdateRcvBufSize(options.dataOutBufSize);
+    dataOutChannel.UpdateRateLogging(options.dataOutRateLogging);
+    flp.fChannels["data-out"].push_back(dataOutChannel);
   }
+
+  // configure heartbeat input channel
+  FairMQChannel hbInChannel(options.hbInSocketType, options.hbInMethod, options.hbInAddress);
+  hbInChannel.UpdateSndBufSize(options.hbInBufSize);
+  hbInChannel.UpdateRcvBufSize(options.hbInBufSize);
+  hbInChannel.UpdateRateLogging(options.hbInRateLogging);
+  flp.fChannels["heartbeat-in"].push_back(hbInChannel);
 
   flp.ChangeState("INIT_DEVICE");
   flp.WaitForEndOfState("INIT_DEVICE");

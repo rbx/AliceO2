@@ -107,6 +107,8 @@ void FLPSender::Run()
 
   uint64_t timeFrameId = 0;
 
+  FairMQChannel& dataInChannel = fChannels.at("data-in").at(0);
+
   while (CheckCurrentState(RUNNING)) {
     // initialize f2e header
     f2eHeader* h = new f2eHeader;
@@ -114,7 +116,7 @@ void FLPSender::Run()
     if (fTestMode > 0) {
       // test-mode: receive and store id part in the buffer.
       FairMQMessage* idPart = fTransportFactory->CreateMessage();
-      fChannels.at("data-in").at(0).Receive(idPart);
+      dataInChannel.Receive(idPart);
 
       h->timeFrameId = *(reinterpret_cast<uint64_t*>(idPart->GetData()));
       h->flpIndex = fIndex;
@@ -145,7 +147,7 @@ void FLPSender::Run()
     } else {
       // regular mode: receive data part from input
       FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-      fChannels.at("data-in").at(0).Receive(dataPart);
+      dataInChannel.Receive(dataPart);
       fDataBuffer.push(dataPart);
     }
 
