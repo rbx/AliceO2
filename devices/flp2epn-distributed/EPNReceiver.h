@@ -19,10 +19,9 @@
 namespace AliceO2 {
 namespace Devices {
 
-struct timeframeBuffer
+struct TFBuffer
 {
-  int count;
-  std::vector<FairMQMessage*> parts;
+  std::vector<std::unique_ptr<FairMQMessage>> parts;
   boost::posix_time::ptime startTime;
   boost::posix_time::ptime endTime;
 };
@@ -41,7 +40,7 @@ class EPNReceiver : public FairMQDevice
     EPNReceiver();
     virtual ~EPNReceiver();
 
-    void PrintBuffer(std::unordered_map<uint64_t, timeframeBuffer> &buffer);
+    void PrintBuffer(const std::unordered_map<uint64_t, TFBuffer> &buffer);
     void DiscardIncompleteTimeframes();
 
     virtual void SetProperty(const int key, const std::string& value);
@@ -53,7 +52,7 @@ class EPNReceiver : public FairMQDevice
     virtual void Run();
     void sendHeartbeats();
 
-    std::unordered_map<uint64_t, timeframeBuffer> fTimeframeBuffer;
+    std::unordered_map<uint64_t, TFBuffer> fTimeframeBuffer;
     std::unordered_set<uint64_t> fDiscardedSet;
 
     int fNumFLPs;

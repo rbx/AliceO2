@@ -51,8 +51,8 @@ class FLPSender : public FairMQDevice
     unsigned int fIndex;
     unsigned int fSendOffset;
     unsigned int fSendDelay;
-    std::queue<FairMQMessage*> fHeaderBuffer;
-    std::queue<FairMQMessage*> fDataBuffer;
+    std::queue<std::unique_ptr<FairMQMessage>> fHeaderBuffer;
+    std::queue<std::unique_ptr<FairMQMessage>> fDataBuffer;
     std::queue<boost::posix_time::ptime> fArrivalTime;
 
     int fSndMoreFlag; // flag for multipart sending

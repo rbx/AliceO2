@@ -49,10 +49,10 @@ void FLPSyncSampler::Run()
   FairMQChannel& dataOutputChannel = fChannels.at("data-out").at(0);
 
   while (CheckCurrentState(RUNNING)) {
-    FairMQMessage* msg = fTransportFactory->CreateMessage(sizeof(uint64_t));
-    memcpy(msg->GetData(), &timeFrameId, sizeof(uint64_t));
+    std::unique_ptr<FairMQMessage> msg(fTransportFactory->CreateMessage(sizeof(uint64_t)));
+    memcpy(msg.get()->GetData(), &timeFrameId, sizeof(uint64_t));
 
-    if (dataOutputChannel.Send(msg, NOBLOCK) == 0) {
+    if (dataOutputChannel.SendAsync(msg) == 0) {
       LOG(ERROR) << "Could not send signal without blocking";
     }
 
@@ -67,8 +67,6 @@ void FLPSyncSampler::Run()
     while (fEventCounter == 0) {
       boost::this_thread::sleep(boost::posix_time::milliseconds(1));
     }
-
-    delete msg;
   }
 
   try {
@@ -96,10 +94,10 @@ void FLPSyncSampler::ListenForAcks()
       poller->Poll(100);
 
       if (poller->CheckInput(0)) {
-        FairMQMessage* idMsg = fTransportFactory->CreateMessage();
+        std::unique_ptr<FairMQMessage> idMsg(fTransportFactory->CreateMessage());
 
         if (fChannels.at("ack-in").at(0).Receive(idMsg) > 0) {
-          id = *(reinterpret_cast<uint64_t*>(idMsg->GetData()));
+          id = *(reinterpret_cast<uint64_t*>(idMsg.get()->GetData()));
           fTimeframeRTT.at(id).end = boost::posix_time::microsec_clock::local_time();
           // store values in a file
           ofsFrames << id << "\n";

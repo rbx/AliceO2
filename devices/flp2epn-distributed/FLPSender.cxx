@@ -64,7 +64,7 @@ void FLPSender::receiveHeartbeats()
 
   while (CheckCurrentState(RUNNING)) {
     try {
-      FairMQMessage* hbMsg = fTransportFactory->CreateMessage();
+      unique_ptr<FairMQMessage> hbMsg(fTransportFactory->CreateMessage());
 
       if (hbChannel.Receive(hbMsg) > 0) {
         string address = string(static_cast<char*>(hbMsg->GetData()), hbMsg->GetSize());
@@ -85,8 +85,6 @@ void FLPSender::receiveHeartbeats()
           LOG(ERROR) << "IP " << address << " unknown, not provided at execution time";
         }
       }
-
-      delete hbMsg;
     } catch (boost::thread_interrupted&) {
       LOG(INFO) << "FLPSender::receiveHeartbeats() interrupted";
       break;
@@ -100,13 +98,14 @@ void FLPSender::Run()
 
   // base buffer, to be copied from for every timeframe body
   void* buffer = operator new[](fEventSize);
-  FairMQMessage* baseMsg = fTransportFactory->CreateMessage(buffer, fEventSize);
+  unique_ptr<FairMQMessage> baseMsg(fTransportFactory->CreateMessage(buffer, fEventSize));
 
   fSndMoreFlag = fChannels.at("data-in").at(0).fSocket->SNDMORE;
   fNoBlockFlag = fChannels.at("data-in").at(0).fSocket->NOBLOCK;
 
   uint64_t timeFrameId = 0;
 
+  // store the channel reference to avoid traversing the map on every loop iteration
   FairMQChannel& dataInChannel = fChannels.at("data-in").at(0);
 
   while (CheckCurrentState(RUNNING)) {
@@ -115,13 +114,15 @@ void FLPSender::Run()
 
     if (fTestMode > 0) {
       // test-mode: receive and store id part in the buffer.
-      FairMQMessage* idPart = fTransportFactory->CreateMessage();
-      dataInChannel.Receive(idPart);
-
-      h->timeFrameId = *(reinterpret_cast<uint64_t*>(idPart->GetData()));
-      h->flpIndex = fIndex;
-
-      delete idPart;
+      unique_ptr<FairMQMessage> idPart(fTransportFactory->CreateMessage());
+      if (dataInChannel.Receive(idPart) > 0) {
+        h->timeFrameId = *(reinterpret_cast<uint64_t*>(idPart->GetData()));
+        h->flpIndex = fIndex;
+      } else {
+        // if nothing was received, try again
+        delete h;
+        continue;
+      }
     } else {
       // regular mode: use the id generated locally
       h->timeFrameId = timeFrameId;
@@ -132,23 +133,26 @@ void FLPSender::Run()
       }
     }
 
-    FairMQMessage* headerPart = fTransportFactory->CreateMessage(h, sizeof(f2eHeader));
-
-    fHeaderBuffer.push(headerPart);
+    unique_ptr<FairMQMessage> headerPart(fTransportFactory->CreateMessage(h, sizeof(f2eHeader)));
+    unique_ptr<FairMQMessage> dataPart(fTransportFactory->CreateMessage());
 
     // save the arrival time of the message.
     fArrivalTime.push(boost::posix_time::microsec_clock::local_time());
 
     if (fTestMode > 0) {
       // test-mode: initialize and store data part in the buffer.
-      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
       dataPart->Copy(baseMsg);
-      fDataBuffer.push(dataPart);
+      fHeaderBuffer.push(move(headerPart));
+      fDataBuffer.push(move(dataPart));
     } else {
       // regular mode: receive data part from input
-      FairMQMessage* dataPart = fTransportFactory->CreateMessage();
-      dataInChannel.Receive(dataPart);
-      fDataBuffer.push(dataPart);
+      if (dataInChannel.Receive(dataPart) > 0) {
+        fHeaderBuffer.push(move(headerPart));
+        fDataBuffer.push(move(dataPart));
+      } else {
+        // if nothing was received, try again
+        continue;
+      }
     }
 
     // LOG(INFO) << fDataBuffer.size();
@@ -157,7 +161,7 @@ void FLPSender::Run()
     if (fSendOffset == 0 && fDataBuffer.size() > 0) {
       sendFrontData();
     } else if (fDataBuffer.size() > 0) {
-      size_t dataSize = fDataBuffer.front()->GetSize();
+      // size_t dataSize = fDataBuffer.front()->GetSize();
       ptime now = boost::posix_time::microsec_clock::local_time();
       if ((now - fArrivalTime.front()).total_milliseconds() >= (fSendDelay * fSendOffset)) {
         sendFrontData();
@@ -166,8 +170,6 @@ void FLPSender::Run()
       }
     }
   }
-
-  delete baseMsg;
 
   heartbeatReceiver.interrupt();
   heartbeatReceiver.join();
@@ -197,10 +199,10 @@ inline void FLPSender::sendFrontData()
     fArrivalTime.pop();
     fDataBuffer.pop();
   } else { // if the heartbeat from the corresponding EPN is within timeout period, send the data.
-    if (fChannels.at("data-out").at(direction).Send(fHeaderBuffer.front(), fSndMoreFlag|fNoBlockFlag) == 0) {
+    if (fChannels.at("data-out").at(direction).SendPart(fHeaderBuffer.front()) == 0) {
       LOG(ERROR) << "Could not queue ID part of event #" << currentTimeframeId << " without blocking";
     }
-    if (fChannels.at("data-out").at(direction).Send(fDataBuffer.front(), fNoBlockFlag) == 0) {
+    if (fChannels.at("data-out").at(direction).SendAsync(fDataBuffer.front()) == 0) {
       LOG(ERROR) << "Could not send message with event #" << currentTimeframeId << " without blocking";
     }
     fHeaderBuffer.pop();
