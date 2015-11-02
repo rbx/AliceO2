@@ -11,6 +11,7 @@
 #include <string>
 
 #include "FairMQDevice.h"
+#include "DataBlock.h"
 
 struct Content {
   int id;
@@ -40,7 +41,7 @@ class O2FLPex : public FairMQDevice
 
   protected:
     int fEventSize;
-
+    char *payload;
     virtual void Init();
     virtual void Run();
 };

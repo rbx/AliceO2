@@ -1,12 +1,12 @@
-/**
- * O2EPNex.cxx
- *
- * @since 2013-01-09
- * @author D. Klein, A. Rybalchenko, M.Al-Turany
- */
+/// \file O2EPNex.cxx
+/// \brief FLP device using FairMQ and data format specified in DataBlock.h
+///
+/// \author D. Klein, A. Rybalchenko, M.Al-Turany
+/// \modifed by Adam Wegrzynek (21.08.2015)
 
 #include <boost/thread.hpp>
 #include <boost/bind.hpp>
+
 #include "O2EPNex.h"
 #include "FairMQLogger.h"
 
@@ -14,21 +14,31 @@ O2EPNex::O2EPNex()
 {
 }
 
+/// Structure definied in DataBlock.h is used instead of Content from O2FLPex.h
+/// Inside of infinite loop it:
+///  - reads the message via FairMQ
+///  - sets the header and data pointers
 void O2EPNex::Run()
 {
-  while (CheckCurrentState(RUNNING)) {
+  FairMQSocket& dataInSocket = *(fChannels.at("data-in").at(0).fSocket);
+  while (GetCurrentState() == RUNNING) {
     FairMQMessage* msg = fTransportFactory->CreateMessage();
-
-    fChannels["data-in"].at(0).Receive(msg);
-
-    int inputSize = msg->GetSize();
-    int numInput = inputSize / sizeof(Content);
-    Content* input = reinterpret_cast<Content*>(msg->GetData());
-
-    // for (int i = 0; i < numInput; ++i) {
-    //     LOG(INFO) << (&input[i])->x << " " << (&input[i])->y << " " << (&input[i])->z << " " << (&input[i])->a << " " << (&input[i])->b;
-    // }
-
+    dataInSocket.Receive(msg, 0);
+        
+    DataBlock* input = new DataBlock();
+    input->header = new DataBlockHeaderBase();
+    
+    uint32_t* buffer = (uint32_t*) msg->GetData();
+    //copies header
+    input->header->blockType = *(buffer);
+    input->header->headerSize = *(buffer + 1);
+    input->header->dataSize = *(buffer + 2);
+    
+    // sets data pointer
+    input->data = (char*)(buffer + 3);
+    //printf("%s", input->data);
+    //LOG(INFO) << input->header->blockType << " " << input->header->headerSize << " " << input->header->dataSize;
+    delete input;
     delete msg;
   }
 }

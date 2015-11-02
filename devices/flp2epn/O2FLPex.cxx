@@ -1,12 +1,10 @@
-/**
- * O2FLPex.cxx
- *
- * @since 2013-04-23
- * @author D. Klein, A. Rybalchenko, M.Al-Turany
- */
+/// \file O2FLPex.cxx
+/// \brief FLP device using FairMQ and data format specified in DataBlock.h
+///
+/// \author D. Klein, A. Rybalchenko, M.Al-Turany
+/// \modifed by Adam Wegrzynek (21.08.2015)
 
 #include <vector>
-#include <stdlib.h>     /* srand, rand */
 #include <time.h>       /* time */
 
 #include <boost/thread.hpp>
@@ -24,41 +22,51 @@ O2FLPex::O2FLPex() :
 
 O2FLPex::~O2FLPex()
 {
+
 }
 
 void O2FLPex::Init()
 {
-  FairMQDevice::Init();
 }
 
+/// Structure definied in DataBlock.h is used instead of Content from O2FLPex.h
+/// Infinite loop: 
+///  - allocates contiguous memory for DataBlock 
+///  - sets the headers in DataBlockHeaderBase
+///  - memcopies the data
+///  - creates new FairMQ message (passes DataBlock pointer in the constructor)
+///  - sends message over the "dat-out channel"
 void O2FLPex::Run()
 {
-  srand(time(NULL));
+  FairMQSocket& dataOutSocket = *(fChannels.at("data-out").at(0).fSocket);
+  while (GetCurrentState() == RUNNING) {
+    //calculates needed memory size
+    int memorySize = sizeof(DataBlockHeaderBase) + sizeof(char) * fEventSize;
+    //contiguous memory allocation for DataBlock
+    uint32_t *buffer = (uint32_t*)malloc(memorySize);
+  
+    DataBlock *frame = new DataBlock();
+    //assigns header pointer
+    frame->header = (DataBlockHeaderBase*) buffer;
+    frame->header->blockType = 1;
+    frame->header->headerSize = sizeof(DataBlockHeaderBase);
+    frame->header->dataSize = fEventSize;
+    //assigns data pointer
+    frame->data = (char*)(buffer + 3);
+    //copies the payload (= copying the data from physmem to Linux memory)
+    memcpy(frame->data, payload, sizeof(char) * fEventSize);
 
-  LOG(DEBUG) << "Message size: " << fEventSize * sizeof(Content) << " bytes.";
+  /* LOG(INFO) << "block type: " << frame->header->blockType << "; header size: "
+     << frame->header->headerSize << "; data size: " << frame->header->dataSize << "; data: "
+     << frame->data << endl; */
 
-  while (CheckCurrentState(RUNNING)) {
-    Content* payload = new Content[fEventSize];
-
-    for (int i = 0; i < fEventSize; ++i) {
-      (&payload[i])->x = rand() % 100 + 1;
-      (&payload[i])->y = rand() % 100 + 1;
-      (&payload[i])->z = rand() % 100 + 1;
-      (&payload[i])->a = (rand() % 100 + 1) / (rand() % 100 + 1);
-      (&payload[i])->b = (rand() % 100 + 1) / (rand() % 100 + 1);
-      // LOG(INFO) << (&payload[i])->x << " " << (&payload[i])->y << " " << (&payload[i])->z << " " << (&payload[i])->a << " " << (&payload[i])->b;
-    }
-
-    FairMQMessage* msg = fTransportFactory->CreateMessage(fEventSize * sizeof(Content));
-    memcpy(msg->GetData(), payload, fEventSize * sizeof(Content));
-
-    fChannels["data-out"].at(0).Send(msg);
-
-    delete[] payload;
+    //create a new message, passes pointer to the buffer and its size
+    FairMQMessage* msg = fTransportFactory->CreateMessage((void*) buffer, memorySize, NULL, NULL);
+    dataOutSocket.Send(msg, 0);
     delete msg;
+    delete frame;
   }
 }
-
 void O2FLPex::SetProperty(const int key, const string& value)
 {
   switch (key) {
@@ -75,12 +83,15 @@ string O2FLPex::GetProperty(const int key, const string& default_/*= ""*/)
     return FairMQDevice::GetProperty(key, default_);
   }
 }
-
+/// Prepares test message that sizes equals to fEventSize (parameter passed when runing program) - it simulates data provided by RORC
 void O2FLPex::SetProperty(const int key, const int value)
 {
   switch (key) {
   case EventSize:
     fEventSize = value;
+    LOG(INFO) << "Initialized static payload: " << fEventSize << " bytes";;
+    payload = (char*)malloc(sizeof(char) * fEventSize);
+    fill(payload, payload + fEventSize, '*');
     break;
   default:
     FairMQDevice::SetProperty(key, value);
