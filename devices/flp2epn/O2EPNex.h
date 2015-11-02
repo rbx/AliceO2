@@ -9,6 +9,7 @@
 #define O2EPNEX_H_
 
 #include "FairMQDevice.h"
+#include "DataBlock.h"
 
 struct Content {
   double a;
