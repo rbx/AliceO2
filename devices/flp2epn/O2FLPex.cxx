@@ -38,7 +38,7 @@ void O2FLPex::Init()
 ///  - sends message over the "dat-out channel"
 void O2FLPex::Run()
 {
-  FairMQSocket& dataOutSocket = *(fChannels.at("data-out").at(0).fSocket);
+  FairMQChannel& dataOutChannel = fChannels.at("data-out").at(0);
   while (GetCurrentState() == RUNNING) {
     //calculates needed memory size
     int memorySize = sizeof(DataBlockHeaderBase) + sizeof(char) * fEventSize;
@@ -62,7 +62,8 @@ void O2FLPex::Run()
 
     //create a new message, passes pointer to the buffer and its size
     FairMQMessage* msg = fTransportFactory->CreateMessage((void*) buffer, memorySize, NULL, NULL);
-    dataOutSocket.Send(msg, 0);
+    dataOutChannel.Send(msg);
+
     delete msg;
     delete frame;
   }

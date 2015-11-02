@@ -20,20 +20,20 @@ O2EPNex::O2EPNex()
 ///  - sets the header and data pointers
 void O2EPNex::Run()
 {
-  FairMQSocket& dataInSocket = *(fChannels.at("data-in").at(0).fSocket);
+  FairMQChannel& dataInChannel = fChannels.at("data-in").at(0);
   while (GetCurrentState() == RUNNING) {
     FairMQMessage* msg = fTransportFactory->CreateMessage();
-    dataInSocket.Receive(msg, 0);
-        
+    dataInChannel.Receive(msg);
+
     DataBlock* input = new DataBlock();
     input->header = new DataBlockHeaderBase();
-    
+
     uint32_t* buffer = (uint32_t*) msg->GetData();
     //copies header
     input->header->blockType = *(buffer);
     input->header->headerSize = *(buffer + 1);
     input->header->dataSize = *(buffer + 2);
-    
+
     // sets data pointer
     input->data = (char*)(buffer + 3);
     //printf("%s", input->data);
