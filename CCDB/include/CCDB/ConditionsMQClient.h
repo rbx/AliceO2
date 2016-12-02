@@ -24,18 +24,11 @@ namespace CDB {
 
 class ConditionsMQClient : public FairMQDevice {
 public:
-  enum { ParameterName = FairMQDevice::Last, OperationType, DataSource, ObjectPath, Last };
-
   ConditionsMQClient();
-
   virtual ~ConditionsMQClient();
 
-  virtual void SetProperty(const int key, const std::string& value);
-  virtual std::string GetProperty(const int key, const std::string& default_ = "");
-  virtual void SetProperty(const int key, const int value);
-  virtual int GetProperty(const int key, const int default_ = 0);
-
 protected:
+  virtual void InitTask();
   virtual void Run();
 
 private:
