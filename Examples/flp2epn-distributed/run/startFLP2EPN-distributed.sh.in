@@ -10,6 +10,7 @@ xterm -geometry 80x25+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SAMPLER &
 
 FLP0="flpSender"
 FLP0+=" --id flpSender1"
+FLP0+=" --transport shmem"
 FLP0+=" --mq-config $cfg"
 FLP0+=" --flp-index 0"
 FLP0+=" --event-size 1000000"
@@ -20,6 +21,7 @@ xterm -geometry 80x25+500+0 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP0 &
 
 FLP1="flpSender"
 FLP1+=" --id flpSender2"
+FLP1+=" --transport shmem"
 FLP1+=" --mq-config $cfg"
 FLP1+=" --flp-index 1"
 FLP1+=" --event-size 1000000"
@@ -30,6 +32,7 @@ xterm -geometry 80x25+500+350 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP1 &
 
 FLP2="flpSender"
 FLP2+=" --id flpSender3"
+FLP2+=" --transport shmem"
 FLP2+=" --mq-config $cfg"
 FLP2+=" --flp-index 2"
 FLP2+=" --event-size 1000000"
@@ -40,6 +43,7 @@ xterm -geometry 80x25+500+700 -hold -e @CMAKE_BINARY_DIR@/bin/$FLP2 &
 
 EPN0="epnReceiver"
 EPN0+=" --id epnReceiver1"
+EPN0+=" --transport shmem"
 EPN0+=" --mq-config $cfg"
 EPN0+=" --num-flps 3"
 EPN0+=" --test-mode 1"
@@ -47,6 +51,7 @@ xterm -geometry 80x25+1000+0 -hold -e @CMAKE_BINARY_DIR@/bin/$EPN0 &
 
 EPN1="epnReceiver"
 EPN1+=" --id epnReceiver2"
+EPN1+=" --transport shmem"
 EPN1+=" --mq-config $cfg"
 EPN1+=" --num-flps 3"
 EPN1+=" --test-mode 1"
@@ -54,6 +59,7 @@ xterm -geometry 80x25+1000+350 -hold -e @CMAKE_BINARY_DIR@/bin/$EPN1 &
 
 EPN2="epnReceiver"
 EPN2+=" --id epnReceiver3"
+EPN2+=" --transport shmem"
 EPN2+=" --mq-config $cfg"
 EPN2+=" --num-flps 3"
 EPN2+=" --test-mode 1"

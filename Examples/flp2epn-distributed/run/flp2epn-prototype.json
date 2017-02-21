@@ -27,6 +27,7 @@
             "channels":
             [{
                 "name": "stf1",
+                "transport": "zeromq",
                 "type": "sub",
                 "method": "connect",
                 "address": "tcp://127.0.0.1:5550",
@@ -50,6 +51,7 @@
             "channels":
             [{
                 "name": "stf1",
+                "transport": "zeromq",
                 "type": "sub",
                 "method": "connect",
                 "address": "tcp://127.0.0.1:5550",
@@ -73,6 +75,7 @@
             "channels":
             [{
                 "name": "stf1",
+                "transport": "zeromq",
                 "type": "sub",
                 "method": "connect",
                 "address": "tcp://127.0.0.1:5550",
@@ -112,6 +115,7 @@
             },
             {
                 "name": "ack",
+                "transport": "zeromq",
                 "type": "push",
                 "method": "connect",
                 "address": "tcp://127.0.0.1:5990",
@@ -137,6 +141,7 @@
             },
             {
                 "name": "ack",
+                "transport": "zeromq",
                 "type": "push",
                 "method": "connect",
                 "address": "tcp://127.0.0.1:5990",
@@ -162,6 +167,7 @@
             },
             {
                 "name": "ack",
+                "transport": "zeromq",
                 "type": "push",
                 "method": "connect",
                 "address": "tcp://127.0.0.1:5990",
