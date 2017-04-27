@@ -5,7 +5,7 @@
 #include "TimeFrame/TimeFrame.h"
 #include <FairMQMessage.h>
 #include <FairMQParts.h>
-#include "zeromq/FairMQTransportFactoryZMQ.h"
+#include <FairMQDevice.h>
 #include "Headers/DataHeader.h"
 #include "TFile.h"
 
@@ -60,7 +60,7 @@ template<typename Factory, typename T>
 inline static FairMQMessagePtr NewSimpleMessage(Factory const &f, const T& data)
 {
   auto* dataCopy = new T(data);
-  return f.CreateMessage(dataCopy, sizeof(T), SimpleMsgCleanup<T>, dataCopy);
+  return f->CreateMessage(dataCopy, sizeof(T), SimpleMsgCleanup<T>, dataCopy);
 }
 
 BOOST_AUTO_TEST_CASE(TimeFrame_test)
@@ -68,8 +68,8 @@ BOOST_AUTO_TEST_CASE(TimeFrame_test)
   FairMQParts messages;
 
   // we use the ZMQ Factory to create some messages
-  FairMQTransportFactoryZMQ zmq;
-  messages.AddPart(zmq.CreateMessage(1000));
+  std::unique_ptr<FairMQTransportFactory> zmq(FairMQDevice::MakeTransport("zeromq"));
+  messages.AddPart(zmq->CreateMessage(1000));
 
   o2::Header::DataHeader dh;
   messages.AddPart(NewSimpleMessage(zmq, dh));
