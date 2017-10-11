@@ -65,6 +65,11 @@ const o2::header::DataDescription o2::header::gDataDescriptionConfig  ("CONFIGUR
 const o2::header::DataDescription o2::header::gDataDescriptionInfo    ("INFORMATION");
 const o2::header::DataDescription o2::header::gDataDescriptionROOTStreamers("ROOT STREAMERS");
 
+const o2::header::DataDescription o2::header::gDataDescriptionSubTimeFrame("SUBTIMEFRAME");
+const o2::header::DataDescription o2::header::gDataDescriptionCruData("CRUDATA");
+const o2::header::DataDescription o2::header::gDataDescriptionCruLinkData("CRULINKDATA");
+const o2::header::DataDescription o2::header::gDataDescriptionBHFrame("HBFRAME");
+
 //definitions for Stack statics
 std::default_delete<byte[]> o2::header::Stack::sDeleter;
 

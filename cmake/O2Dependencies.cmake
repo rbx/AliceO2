@@ -68,6 +68,18 @@ endif()
 
 ########## Bucket definitions ############
 o2_define_bucket(
+    NAME
+    DataDistributionCommon_bucket
+
+    DEPENDENCIES
+    Headers
+    O2Device
+
+    INCLUDE_DIRECTORIES
+    ${CMAKE_SOURCE_DIR}/Utilities/DataDistribution/Common/include
+)
+
+o2_define_bucket(
   NAME
   glfw_bucket
 
@@ -541,7 +553,7 @@ o2_define_bucket(
     ITSMFTBase
     DetectorsBase
     SimulationDataFormat
-    
+
     INCLUDE_DIRECTORIES
     ${CMAKE_SOURCE_DIR}/Detectors/Base/include
     ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/common/base/include
@@ -595,7 +607,7 @@ o2_define_bucket(
 
     DEPENDENCIES
     ITSSimulation
-    
+
     INCLUDE_DIRECTORIES
     ${FAIRROOT_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/Detectors/ITSMFT/ITS/base/include
@@ -964,7 +976,7 @@ o2_define_bucket(
 o2_define_bucket(
     NAME
     passive_detector_bucket
- 
+
     DEPENDENCIES
     fairroot_geom
     Field
@@ -1067,7 +1079,7 @@ o2_define_bucket(
     ${CMAKE_SOURCE_DIR}/Detectors/Base/include
     ${CMAKE_SOURCE_DIR}/Detectors/FIT/base/include
     ${CMAKE_SOURCE_DIR}/Detectors/Simulation/include
-    ${CMAKE_SOURCE_DIR}/Detectors/FIT/Simulations/include 
+    ${CMAKE_SOURCE_DIR}/Detectors/FIT/Simulations/include
     ${CMAKE_SOURCE_DIR}/DataFormats/simulation/include
     ${CMAKE_SOURCE_DIR}/Common/MathUtils/include
 )

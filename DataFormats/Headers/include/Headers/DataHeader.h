@@ -637,6 +637,11 @@ extern const o2::header::DataDescription gDataDescriptionTracks;
 extern const o2::header::DataDescription gDataDescriptionConfig;
 extern const o2::header::DataDescription gDataDescriptionInfo;
 extern const o2::header::DataDescription gDataDescriptionROOTStreamers;
+
+extern const o2::header::DataDescription gDataDescriptionSubTimeFrame;
+extern const o2::header::DataDescription gDataDescriptionCruData;
+extern const o2::header::DataDescription gDataDescriptionCruLinkData;
+extern const o2::header::DataDescription gDataDescriptionBHFrame;
 /// @} // end of doxygen group
 
 //__________________________________________________________________________________________________
