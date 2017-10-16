@@ -255,6 +255,14 @@ o2_define_bucket(
 
 o2_define_bucket(
     NAME
+    raw_stf_builder_prototype
+
+    DEPENDENCIES
+    flp2epn_bucket
+)
+
+o2_define_bucket(
+    NAME
     common_math_bucket
 
     DEPENDENCIES

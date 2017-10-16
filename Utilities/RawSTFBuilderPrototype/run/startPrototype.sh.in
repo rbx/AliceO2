@@ -1,0 +1,23 @@
+#!/bin/bash
+exRegionConfig="@CMAKE_BINARY_DIR@/bin/config/raw-stf-prototype.json"
+
+msgSize="1000000"
+
+if [[ $1 =~ ^[0-9]+$ ]]; then
+    msgSize=$1
+fi
+
+shmmonitor --cleanup
+
+BUILDER="rawSTFBuilder"
+BUILDER+=" --id builder"
+BUILDER+=" --msg-size $msgSize"
+BUILDER+=" --transport shmem"
+BUILDER+=" --mq-config $exRegionConfig"
+xterm -geometry 80x23+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$BUILDER &
+
+SINK="rawSTFSink"
+SINK+=" --id sink"
+SINK+=" --transport shmem"
+SINK+=" --mq-config $exRegionConfig"
+xterm -geometry 80x23+500+0 -hold -e @CMAKE_BINARY_DIR@/bin/$SINK &
