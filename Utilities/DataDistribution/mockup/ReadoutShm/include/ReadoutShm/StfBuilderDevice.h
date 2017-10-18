@@ -42,6 +42,7 @@ protected:
 
   std::string      mInputChannelName;
   std::string      mOutputChannelName;
+  std::vector<FairMQMessagePtr> mMessages;
 };
 
 } } } /* namespace o2::DataDistribution::mockup */

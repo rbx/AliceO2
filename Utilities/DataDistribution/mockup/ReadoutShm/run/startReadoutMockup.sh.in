@@ -3,15 +3,18 @@ readoutMockupConfig="@CMAKE_BINARY_DIR@/bin/config/readout-mockup.json"
 
 READOUT="mockupReadoutDevice"
 READOUT+=" --id readout"
+READOUT+=" --transport shmem"
 READOUT+=" --mq-config $readoutMockupConfig"
 xterm -geometry 80x23+0+0 -hold -e @CMAKE_BINARY_DIR@/bin/$READOUT &
 
 BUILDER="mockupStfBuilderDevice"
 BUILDER+=" --id builder"
+BUILDER+=" --transport shmem"
 BUILDER+=" --mq-config $readoutMockupConfig"
 xterm -geometry 80x23+500+0 -hold -e @CMAKE_BINARY_DIR@/bin/$BUILDER &
 
 HANDLER="mockupStfHandlerDevice"
 HANDLER+=" --id handler"
+HANDLER+=" --transport shmem"
 HANDLER+=" --mq-config $readoutMockupConfig"
 xterm -geometry 80x23+1000+0 -hold -e @CMAKE_BINARY_DIR@/bin/$HANDLER &

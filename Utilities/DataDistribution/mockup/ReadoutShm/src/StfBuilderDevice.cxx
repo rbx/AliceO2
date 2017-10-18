@@ -20,7 +20,10 @@
 
 namespace o2 { namespace DataDistribution { namespace mockup {
 
-StfBuilderDevice::StfBuilderDevice() : O2Device{} {}
+StfBuilderDevice::StfBuilderDevice()
+    : O2Device{}
+    , mMessages()
+    {}
 
 StfBuilderDevice::~StfBuilderDevice() {}
 
@@ -31,7 +34,22 @@ void StfBuilderDevice::InitTask() {
       GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
 }
 
-bool StfBuilderDevice::ConditionalRun() { return false; }
+bool StfBuilderDevice::ConditionalRun() {
+    FairMQMessagePtr header(NewMessageFor(OptionKeyOutputChannelName, 0));
+
+    Receive(header, OptionKeyInputChannelName);
+
+    DataHeader* mO2DataHeader = static_cast<DataHeader*>(header->GetData());
+    for(int i = 0; i < mO2DataHeader->payloadSize; ++i) {
+        FairMQMessagePtr msg(NewMessageFor(OptionKeyInputChannelName, 0));
+        Receive(msg, OptionKeyInputChannelName);
+        LOG(INFO) << std::hex << *static_cast<char*>(msg->GetData()) << std::dec;
+        mMessages.push_back(std::move(msg));
+    }
+
+    return true;
+}
+
 }
 }
 } /* namespace o2::DataDistribution::mockup */

@@ -17,7 +17,7 @@
                 ]
             },
             {
-                "key": "builder",
+                "id": "builder",
                 "channels": [
                     {
                         "name": "readout-output",
@@ -42,7 +42,7 @@
                 ]
             },
             {
-                "id": "sink1",
+                "id": "handler",
                 "channels": [
                     {
                         "name": "stf-channel",

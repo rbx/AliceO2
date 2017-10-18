@@ -23,11 +23,6 @@ namespace o2 { namespace DataDistribution { namespace mockup {
 ReadoutDevice::ReadoutDevice() : O2Device{} {}
 
 ReadoutDevice::~ReadoutDevice() {
-  if (mDataRegion)
-    delete mDataRegion;
-
-  if (mDescRegion)
-    delete mDescRegion;
 }
 
 void ReadoutDevice::InitTask()
@@ -54,28 +49,18 @@ void ReadoutDevice::InitTask()
     exit (-1);
   }
 
-  if (mDataRegion == nullptr || mDescRegion == nullptr ||
-      oldmDataRegionName != mDataRegionName ||
-      oldmDataRegionSize != mDataRegionSize ||
-      oldmDescRegionName != mDescRegionName ||
-      oldmDescRegionSize != mDescRegionSize) {
+  mDataRegion.reset();
+  mDescRegion.reset();
 
-    mO2Interface.clear();
+  // Open SHM regions (segments)
 
-    // Open SHM regions (segments)
-    if (mDataRegion)
-      delete mDataRegion;
+  mDataRegion = FairMQRegionPtr(new FairMQRegionSHM(mDataRegionSize));
+  mDescRegion = FairMQRegionPtr(new FairMQRegionSHM(mDescRegionSize));
 
-    if (mDescRegion)
-      delete mDescRegion;
+  //
+  auto *data = mDataRegion->GetData();
+  mCRUMemoryHandler.init(mDataRegion.get(), mDescRegion.get(), mSuperpageSize);
 
-    mDataRegion = new FairMQRegionSHM(mDataRegionSize); // TODO: name
-    mDescRegion = new FairMQRegionSHM(mDescRegionSize); // TODO: name
-
-    //
-    auto *data = mDataRegion->GetData();
-    mCRUMemoryHandler.init(mDataRegion, mDescRegion, mSuperpageSize);
-  }
 }
 
 bool ReadoutDevice::ConditionalRun()
@@ -107,16 +92,20 @@ bool ReadoutDevice::ConditionalRun()
     // The software should filter out HBFs that are not accepted by HBMap
 
     // Each channel is reported separately to the O2
+
+    FairMQMessagePtr header(NewMessageFor(OptionKeyOutputChannelName, 0, sizeof(DataHeader)));
+
+    DataHeader* mO2DataHeader = new (header->GetData()) DataHeader();
     ReadoutO2Data linkO2Data;
-    linkO2Data.mO2DataHeader.headerSize = sizeof(DataHeader);
-    linkO2Data.mO2DataHeader.flags = 0;
-    linkO2Data.mO2DataHeader.dataDescription =
+    mO2DataHeader->headerSize = sizeof(DataHeader);
+    mO2DataHeader->flags = 0;
+    mO2DataHeader->dataDescription =
         o2::Header::gDataDescriptionRawData;
-    linkO2Data.mO2DataHeader.dataOrigin = o2::Header::gDataOriginTPC;
-    linkO2Data.mO2DataHeader.payloadSerializationMethod =
+    mO2DataHeader->dataOrigin = o2::Header::gDataOriginTPC;
+    mO2DataHeader->payloadSerializationMethod =
         o2::Header::gSerializationMethodNone;
-    linkO2Data.mO2DataHeader.subSpecification = link;
-    linkO2Data.mO2DataHeader.payloadSize =
+    mO2DataHeader->subSpecification = link;
+    mO2DataHeader->payloadSize =
         0; // TODO: how to calculate this? Sum of all accepted DmaPackets
 
     RawDmaPacketDesc *desc =
@@ -132,16 +121,15 @@ bool ReadoutDevice::ConditionalRun()
       if (!desc->mValidHBF)
         continue;
 
-      // linkO2Data.mO2DataHeader.payloadSize += desc->mRawDataSize;
-      linkO2Data.mO2DataHeader.payloadSize += cCruDmaPacketSize;
+      mO2DataHeader->payloadSize += cCruDmaPacketSize;
 
       linkO2Data.mReadoutData.emplace_back(CruDmaPacket{
-        mDataRegion,
+        mDataRegion.get(),
         size_t(sp.mDataVirtualAddress + (packet * cCruDmaPacketSize) -
           static_cast<char *>(mDataRegion->GetData())),
         cCruDmaPacketSize, // This should be taken from desc->mRawDataSize
                            // (filled by the CRU)
-        mDescRegion,
+        mDescRegion.get(),
         size_t(reinterpret_cast<const char *>(desc) -
           static_cast<char *>(mDescRegion->GetData())),
         sizeof (RawDmaPacketDesc)
@@ -151,9 +139,26 @@ bool ReadoutDevice::ConditionalRun()
       mCRUMemoryHandler.get_data_buffer(sp.mDataVirtualAddress + (packet * cCruDmaPacketSize), cCruDmaPacketSize);
     }
 
+    mO2DataHeader->payloadSize = linkO2Data.mReadoutData.size();
+
+    Send(header, OptionKeyOutputChannelName);
+
+    for (const auto& d : linkO2Data.mReadoutData) {
+      FairMQMessagePtr msg(NewMessageFor(OptionKeyOutputChannelName,
+                                         0,
+                                         mDataRegion,
+                                         static_cast<char*>(d.mDataSHMRegion->GetData()) + d.mDataOffset,
+                                         d.mDataSize));
+
+      Send(msg, OptionKeyOutputChannelName);
+    }
+
+
+
     // LOG(INFO) << "Sending a superpage for CRU-link " << link << " containing
     // " << linkO2Data.mReadoutData.size() << " packets.";
-    mO2Interface.put(std::move(linkO2Data));
+
+
   }
 
   std::this_thread::sleep_for(sleepTime);
@@ -167,8 +172,8 @@ void CRUMemoryHandler::teardown()
   mSuperpages = std::stack<CRUSuperpage>();
 }
 
-void CRUMemoryHandler::init(FairMQRegionSHM *dataRegion,
-                            FairMQRegionSHM *descRegion, size_t superpageSize)
+void CRUMemoryHandler::init(FairMQRegion *dataRegion,
+                            FairMQRegion *descRegion, size_t superpageSize)
 {
   teardown();
 
@@ -290,81 +295,6 @@ void CRUMemoryHandler::put_data_buffer(const char *dataBufferAddr, const std::si
     mUsedSuperPages.erase(spStartAddr);
     mSuperpages.push(mVirtToSuperpage[spStartAddr]);
   }
-}
-
-ReadoutO2Interface::ReadoutO2Interface()
-{
-  mRunning = true;
-  mRunner = std::thread(&ReadoutO2Interface::run, this);
-}
-
-ReadoutO2Interface::~ReadoutO2Interface()
-{
-  stop();
-  mRunner.join();
-}
-
-/// Send CRU-link data to O2
-void ReadoutO2Interface::run()
-{
-  while (mRunning) {
-    ReadoutO2Data toSend;
-    if (!get(toSend)) { // better not be blocking anywhere else...
-      if (!mRunning)
-        return;
-      else
-        continue;
-    }
-
-    LOG(INFO) << "Sending a superpage for CRU-link "
-              << toSend.mO2DataHeader.subSpecification << " containing "
-              << toSend.mReadoutData.size() << " packets.";
-
-    // TODO:
-    //  - Send toSend out -> mOutChannelName
-    //  - Return superpages mCRUMemoryHandler.put_superpage(virt)
-    //  - ...
-    //
-    //
-    //
-  }
-}
-
-void ReadoutO2Interface::stop()
-{
-  std::lock_guard<std::mutex> lock(mLock);
-  mRunning = false;
-  mDataCond.notify_all();
-}
-
-void ReadoutO2Interface::clear()
-{
-  std::lock_guard<std::mutex> lock(mLock);
-  mO2Data.clear();
-}
-
-/// Called from CRU-DMA interrupt routine
-void ReadoutO2Interface::put(ReadoutO2Data &&rd)
-{
-  std::lock_guard<std::mutex> lock(mLock);
-  mO2Data.emplace_back(std::move(rd));
-  mDataCond.notify_one();
-}
-
-/// Called from ReadoutO2Interface::roon() send loop
-bool ReadoutO2Interface::get(ReadoutO2Data &rd)
-{
-  std::unique_lock<std::mutex> lock(mLock);
-
-  while (mO2Data.empty() && mRunning)
-    mDataCond.wait(lock);
-
-  if (!mRunning)
-    return false;
-
-  rd = mO2Data.front();
-  mO2Data.pop_front();
-  return true;
 }
 
 } } } /* namespace o2::DataDistribution::mockup */

@@ -15,28 +15,24 @@
 
 #include <vector>
 
-class FairMQRegionSHM;
+class FairMQRegion;
 
 namespace o2 { namespace DataDistribution { namespace mockup {
 
 using DataHeader = o2::Header::DataHeader;
 
 struct CruDmaPacket {
-  FairMQRegionSHM   *mDataSHMRegion = nullptr;
+  FairMQRegion   *mDataSHMRegion = nullptr;
   size_t            mDataOffset;
   size_t            mDataSize;
 
-  FairMQRegionSHM   *mDescSHMRegion = nullptr;
+  FairMQRegion   *mDescSHMRegion = nullptr;
   size_t            mDescOffset;
   size_t            mDescSize;
 };
 
 
 struct ReadoutO2Data {
-  // O2DataHeader
-  DataHeader                mO2DataHeader;
-
-  // Readout Description
   std::vector<CruDmaPacket> mReadoutData;
 };
 

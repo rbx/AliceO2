@@ -50,7 +50,7 @@ public:
   CRUMemoryHandler() = default;
   ~CRUMemoryHandler() { teardown(); }
 
-  void init(FairMQRegionSHM *dataRegion, FairMQRegionSHM *descRegion, size_t sp_size);
+  void init(FairMQRegion *dataRegion, FairMQRegion *descRegion, size_t sp_size);
   void teardown();
 
   bool get_superpage(CRUSuperpage &sp);
@@ -74,28 +74,6 @@ private:
   char                                                      *mDataStartAddress;
   std::size_t                                               mDataRegionSize;
 };
-
-
-class ReadoutO2Interface {
-
-public:
-  ReadoutO2Interface();
-  ~ReadoutO2Interface();
-  void run();
-  void stop();
-
-  bool get(ReadoutO2Data &rd);
-  void put(ReadoutO2Data &&rd);
-  void clear();
-
-private:
-  std::deque<ReadoutO2Data>   mO2Data;
-  std::mutex                  mLock;
-  std::condition_variable     mDataCond;
-  bool                        mRunning;
-  std::thread                 mRunner;
-};
-
 
 class ReadoutDevice : public Base::O2Device
 {
@@ -126,11 +104,10 @@ protected:
   std::size_t      mDescRegionSize;
   std::size_t      mSuperpageSize;
 
-  FairMQRegionSHM   *mDataRegion = nullptr;
-  FairMQRegionSHM   *mDescRegion = nullptr;
+  FairMQRegionPtr  mDataRegion = nullptr;
+  FairMQRegionPtr  mDescRegion = nullptr;
 
   CRUMemoryHandler      mCRUMemoryHandler;
-  ReadoutO2Interface    mO2Interface;
 };
 
 } } } /* namespace o2::DataDistribution::mockup */
