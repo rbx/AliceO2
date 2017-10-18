@@ -10,7 +10,6 @@ set(MODULE_BUCKET_NAME O2DeviceApplication_bucket)
 O2_SETUP(NAME ${MODULE_NAME})
 
 set(SRCS
-		src/ReadoutO2DataModel.cxx
 		src/ReadoutDevice.cxx
 		src/StfBuilderDevice.cxx
 		src/StfHandlerDevice.cxx
@@ -31,9 +30,9 @@ Set(Exe_Names
   )
 
 set(Exe_Source
-    src/runReadoutDevice.cxx
-    src/runStfBuilderDevice.cxx
-    src/runStfHandlerDevice.cxx
+    run/runReadoutDevice.cxx
+    run/runStfBuilderDevice.cxx
+    run/runStfHandlerDevice.cxx
   )
 
 list(LENGTH Exe_Names _length)

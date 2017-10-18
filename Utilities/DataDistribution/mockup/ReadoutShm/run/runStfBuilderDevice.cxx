@@ -16,16 +16,11 @@
 namespace bpo = boost::program_options;
 
 void addCustomOptions(bpo::options_description &options) {
-  options.add_options()(
-      o2::DataDistribution::mockup::StfBuilderDevice::OptionKeyInputChannelName,
-      bpo::value<std::string>()->default_value("readout-output"),
-      "Name of the readout channel (input)");
-
-  options.add_options()(
-      o2::DataDistribution::mockup::StfBuilderDevice::
-          OptionKeyOutputChannelName,
-      bpo::value<std::string>()->default_value("stf-channel"),
-      "Name of the output channel");
+  options.add_options()
+    (o2::DataDistribution::mockup::StfBuilderDevice::OptionKeyInputChannelName,
+     bpo::value<std::string>()->default_value("readout"), "Name of the readout channel (input)")
+    (o2::DataDistribution::mockup::StfBuilderDevice::OptionKeyOutputChannelName,
+     bpo::value<std::string>()->default_value("stf-channel"), "Name of the output channel");
 }
 
 FairMQDevicePtr getDevice(const FairMQProgOptions & /*config*/) {

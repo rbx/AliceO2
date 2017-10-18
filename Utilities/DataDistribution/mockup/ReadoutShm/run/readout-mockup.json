@@ -5,7 +5,7 @@
                 "id": "readout",
                 "channels": [
                     {
-                        "name": "readout-output",
+                        "name": "readout",
                         "sockets": [
                             {
                                 "type": "push",
@@ -20,7 +20,7 @@
                 "id": "builder",
                 "channels": [
                     {
-                        "name": "readout-output",
+                        "name": "readout",
                         "sockets": [
                             {
                                 "type": "pull",

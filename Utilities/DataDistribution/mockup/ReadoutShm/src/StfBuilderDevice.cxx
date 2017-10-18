@@ -28,21 +28,19 @@ StfBuilderDevice::StfBuilderDevice()
 StfBuilderDevice::~StfBuilderDevice() {}
 
 void StfBuilderDevice::InitTask() {
-  mInputChannelName =
-      GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
-  mOutputChannelName =
-      GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
+  mInputChannelName = GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
+  mOutputChannelName = GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
 }
 
 bool StfBuilderDevice::ConditionalRun() {
-    FairMQMessagePtr header(NewMessageFor(OptionKeyOutputChannelName, 0));
+    FairMQMessagePtr header(NewMessageFor(mInputChannelName, 0));
 
-    Receive(header, OptionKeyInputChannelName);
+    Receive(header, mInputChannelName);
 
     DataHeader* mO2DataHeader = static_cast<DataHeader*>(header->GetData());
-    for(int i = 0; i < mO2DataHeader->payloadSize; ++i) {
-        FairMQMessagePtr msg(NewMessageFor(OptionKeyInputChannelName, 0));
-        Receive(msg, OptionKeyInputChannelName);
+    for (int i = 0; i < mO2DataHeader->payloadSize; ++i) {
+        FairMQMessagePtr msg(NewMessageFor(mInputChannelName, 0));
+        Receive(msg, mInputChannelName);
         LOG(INFO) << std::hex << *static_cast<char*>(msg->GetData()) << std::dec;
         mMessages.push_back(std::move(msg));
     }

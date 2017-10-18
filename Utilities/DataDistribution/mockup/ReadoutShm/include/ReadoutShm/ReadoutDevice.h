@@ -79,9 +79,7 @@ class ReadoutDevice : public Base::O2Device
 {
 public:
   static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
-  static constexpr const char* OptionKeyReadoutDataRegionName = "data-shm-region-name";
   static constexpr const char* OptionKeyReadoutDataRegionSize = "data-shm-region-size";
-  static constexpr const char* OptionKeyReadoutDescRegionName = "desc-shm-region-name";
   static constexpr const char* OptionKeyReadoutDescRegionSize = "desc-shm-region-size";
   static constexpr const char* OptionKeyReadoutSuperpageSize = "cru-superpage-size";
 
@@ -98,9 +96,7 @@ protected:
   bool ConditionalRun() final;
 
   std::string      mOutChannelName;
-  std::string      mDataRegionName;
   std::size_t      mDataRegionSize;
-  std::string      mDescRegionName;
   std::size_t      mDescRegionSize;
   std::size_t      mSuperpageSize;
 

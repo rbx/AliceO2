@@ -27,22 +27,12 @@ ReadoutDevice::~ReadoutDevice() {
 
 void ReadoutDevice::InitTask()
 {
-  auto oldmDataRegionName = mDataRegionName;
   auto oldmDataRegionSize = mDataRegionSize;
-  auto oldmDescRegionName = mDescRegionName;
   auto oldmDescRegionSize = mDescRegionSize;
-  mOutChannelName =
-      GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
-  mDataRegionName =
-      GetConfig()->GetValue<std::string>(OptionKeyReadoutDataRegionName);
-  mDataRegionSize =
-      GetConfig()->GetValue<std::size_t>(OptionKeyReadoutDataRegionSize);
-  mDescRegionName =
-      GetConfig()->GetValue<std::string>(OptionKeyReadoutDescRegionName);
-  mDescRegionSize =
-      GetConfig()->GetValue<std::size_t>(OptionKeyReadoutDescRegionSize);
-  mSuperpageSize =
-      GetConfig()->GetValue<std::size_t>(OptionKeyReadoutSuperpageSize);
+  mOutChannelName = GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
+  mDataRegionSize = GetConfig()->GetValue<std::size_t>(OptionKeyReadoutDataRegionSize);
+  mDescRegionSize = GetConfig()->GetValue<std::size_t>(OptionKeyReadoutDescRegionSize);
+  mSuperpageSize = GetConfig()->GetValue<std::size_t>(OptionKeyReadoutSuperpageSize);
 
   if (mSuperpageSize & (mSuperpageSize - 1)) {
     LOG(ERROR) << "Superpage size must be power of 2: " << mSuperpageSize;
@@ -54,13 +44,10 @@ void ReadoutDevice::InitTask()
 
   // Open SHM regions (segments)
 
-  mDataRegion = FairMQRegionPtr(new FairMQRegionSHM(mDataRegionSize));
-  mDescRegion = FairMQRegionPtr(new FairMQRegionSHM(mDescRegionSize));
+  mDataRegion = NewRegionFor(mOutChannelName, 0, mDataRegionSize);
+  mDescRegion = NewRegionFor(mOutChannelName, 0, mDescRegionSize);
 
-  //
-  auto *data = mDataRegion->GetData();
   mCRUMemoryHandler.init(mDataRegion.get(), mDescRegion.get(), mSuperpageSize);
-
 }
 
 bool ReadoutDevice::ConditionalRun()
@@ -78,10 +65,10 @@ bool ReadoutDevice::ConditionalRun()
   // here we assume the CRU produced cNumCruLinks x superpages, each with
   // associated
   // descriptors
-  const auto sleepTime = std::chrono::microseconds(
-      1000000 * (cNumCruLinks * mSuperpageSize) / (cStfPerSec * cStfSize));
+  const auto sleepTime = std::chrono::microseconds(1000000 * (cNumCruLinks * mSuperpageSize) / (cStfPerSec * cStfSize));
 
   for (auto link = 0; link < cNumCruLinks; link++) {
+    LOG(INFO) << "preparing link " << link;
     CRUSuperpage sp;
     if (!mCRUMemoryHandler.get_superpage(sp)) {
       LOG(ERROR) << "Losing data! No superpages available!";
@@ -93,25 +80,18 @@ bool ReadoutDevice::ConditionalRun()
 
     // Each channel is reported separately to the O2
 
-    FairMQMessagePtr header(NewMessageFor(OptionKeyOutputChannelName, 0, sizeof(DataHeader)));
+    DataHeader mO2DataHeader;
+    mO2DataHeader.headerSize = sizeof(DataHeader);
+    mO2DataHeader.flags = 0;
+    mO2DataHeader.dataDescription = o2::Header::gDataDescriptionRawData;
+    mO2DataHeader.dataOrigin = o2::Header::gDataOriginTPC;
+    mO2DataHeader.payloadSerializationMethod = o2::Header::gSerializationMethodNone;
+    mO2DataHeader.subSpecification = link;
 
-    DataHeader* mO2DataHeader = new (header->GetData()) DataHeader();
     ReadoutO2Data linkO2Data;
-    mO2DataHeader->headerSize = sizeof(DataHeader);
-    mO2DataHeader->flags = 0;
-    mO2DataHeader->dataDescription =
-        o2::Header::gDataDescriptionRawData;
-    mO2DataHeader->dataOrigin = o2::Header::gDataOriginTPC;
-    mO2DataHeader->payloadSerializationMethod =
-        o2::Header::gSerializationMethodNone;
-    mO2DataHeader->subSpecification = link;
-    mO2DataHeader->payloadSize =
-        0; // TODO: how to calculate this? Sum of all accepted DmaPackets
 
-    RawDmaPacketDesc *desc =
-      reinterpret_cast<RawDmaPacketDesc*>(sp.mDescVirtualAddress);
+    RawDmaPacketDesc *desc = reinterpret_cast<RawDmaPacketDesc*>(sp.mDescVirtualAddress);
     for (auto packet = 0; packet < numDescInSp; packet++, desc++) {
-
       // Real-world scenario: CRU marks some of the DMA packet slots as invalid.
       // Simulate this by making ~10% of them invalid.
       {
@@ -121,17 +101,12 @@ bool ReadoutDevice::ConditionalRun()
       if (!desc->mValidHBF)
         continue;
 
-      mO2DataHeader->payloadSize += cCruDmaPacketSize;
-
       linkO2Data.mReadoutData.emplace_back(CruDmaPacket{
         mDataRegion.get(),
-        size_t(sp.mDataVirtualAddress + (packet * cCruDmaPacketSize) -
-          static_cast<char *>(mDataRegion->GetData())),
-        cCruDmaPacketSize, // This should be taken from desc->mRawDataSize
-                           // (filled by the CRU)
+        size_t(sp.mDataVirtualAddress + (packet * cCruDmaPacketSize) - static_cast<char *>(mDataRegion->GetData())),
+        cCruDmaPacketSize, // This should be taken from desc->mRawDataSize (filled by the CRU)
         mDescRegion.get(),
-        size_t(reinterpret_cast<const char *>(desc) -
-          static_cast<char *>(mDescRegion->GetData())),
+        size_t(reinterpret_cast<const char *>(desc) - static_cast<char *>(mDescRegion->GetData())),
         sizeof (RawDmaPacketDesc)
       });
 
@@ -139,26 +114,30 @@ bool ReadoutDevice::ConditionalRun()
       mCRUMemoryHandler.get_data_buffer(sp.mDataVirtualAddress + (packet * cCruDmaPacketSize), cCruDmaPacketSize);
     }
 
-    mO2DataHeader->payloadSize = linkO2Data.mReadoutData.size();
+    mO2DataHeader.payloadSize = linkO2Data.mReadoutData.size();
 
-    Send(header, OptionKeyOutputChannelName);
+    FairMQMessagePtr header(NewMessageFor(mOutChannelName, 0, sizeof(mO2DataHeader)));
+    memcpy(header->GetData(), &mO2DataHeader, sizeof(mO2DataHeader));
 
-    for (const auto& d : linkO2Data.mReadoutData) {
-      FairMQMessagePtr msg(NewMessageFor(OptionKeyOutputChannelName,
-                                         0,
-                                         mDataRegion,
-                                         static_cast<char*>(d.mDataSHMRegion->GetData()) + d.mDataOffset,
-                                         d.mDataSize));
-
-      Send(msg, OptionKeyOutputChannelName);
+    if (Send(header, mOutChannelName) < 0) {
+      LOG(ERROR) << "could not send header";
+      return false;
     }
 
+    for (int i = 0; i < linkO2Data.mReadoutData.size(); ++i) {
+      FairMQMessagePtr msg(NewMessageFor(mOutChannelName,
+                                         0,
+                                         mDataRegion,
+                                         static_cast<char*>(linkO2Data.mReadoutData.at(i).mDataSHMRegion->GetData()) + linkO2Data.mReadoutData.at(i).mDataOffset,
+                                         linkO2Data.mReadoutData.at(i).mDataSize));
 
+      if (Send(msg, mOutChannelName) < 0) {
+        LOG(ERROR) << "could not send data " << i;
+        return false;
+      }
+    }
 
-    // LOG(INFO) << "Sending a superpage for CRU-link " << link << " containing
-    // " << linkO2Data.mReadoutData.size() << " packets.";
-
-
+    // LOG(INFO) << "Sending a superpage for CRU-link " << link << " containing " << linkO2Data.mReadoutData.size() << " packets.";
   }
 
   std::this_thread::sleep_for(sleepTime);
