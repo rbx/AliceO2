@@ -24,7 +24,7 @@ void addCustomOptions(bpo::options_description &options) {
   options.add_options()(
       o2::DataDistribution::mockup::StfBuilderDevice::
           OptionKeyOutputChannelName,
-      bpo::value<std::string>()->default_value("readout-output"),
+      bpo::value<std::string>()->default_value("stf-channel"),
       "Name of the output channel");
 }
 

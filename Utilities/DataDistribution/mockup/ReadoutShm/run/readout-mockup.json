@@ -1,0 +1,61 @@
+{
+    "fairMQOptions": {
+        "devices": [
+            {
+                "id": "readout",
+                "channels": [
+                    {
+                        "name": "readout-output",
+                        "sockets": [
+                            {
+                                "type": "push",
+                                "method": "bind",
+                                "address": "tcp://*:5555"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "key": "builder",
+                "channels": [
+                    {
+                        "name": "readout-output",
+                        "sockets": [
+                            {
+                                "type": "pull",
+                                "method": "connect",
+                                "address": "tcp://localhost:5555"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "stf-channel",
+                        "sockets": [
+                            {
+                                "type": "push",
+                                "method": "connect",
+                                "address": "tcp://localhost:5556"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "sink1",
+                "channels": [
+                    {
+                        "name": "stf-channel",
+                        "sockets": [
+                            {
+                                "type": "pull",
+                                "method": "bind",
+                                "address": "tcp://*:5556"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

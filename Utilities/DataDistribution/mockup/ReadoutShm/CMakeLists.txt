@@ -1,6 +1,9 @@
 # @author Gvozden Neskovic
 # @brief  cmake setup for shm-readout-STFBuilder mockup
 
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run/startReadoutMockup.sh.in ${CMAKE_BINARY_DIR}/bin/startReadoutMockup.sh)
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/run/readout-mockup.json ${CMAKE_BINARY_DIR}/bin/config/readout-mockup.json)
+
 set(MODULE_NAME "MockupReadoutShm")
 set(MODULE_BUCKET_NAME O2DeviceApplication_bucket)
 
