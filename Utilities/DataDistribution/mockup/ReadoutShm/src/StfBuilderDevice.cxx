@@ -37,11 +37,25 @@ bool StfBuilderDevice::ConditionalRun() {
 
     Receive(header, mInputChannelName);
 
-    DataHeader* mO2DataHeader = static_cast<DataHeader*>(header->GetData());
-    for (int i = 0; i < mO2DataHeader->payloadSize; ++i) {
+    DataHeader mO2DataHeader;
+    // boost is not aligning properly these buffers.
+    // without this memcopy, mO2DataHeader->payloadSize gives wrong number
+    memcpy(&mO2DataHeader, header->GetData(), header->GetSize());
+
+    if (mO2DataHeader.payloadSize > 128) {
+        LOG(ERROR) << "PayloadSize too large! Stopping... " << mO2DataHeader.payloadSize;
+        return false;
+    }
+
+    LOG(INFO) << "Receiving " << mO2DataHeader.payloadSize << " payloads.";
+
+    for (int i = 0; i < mO2DataHeader.payloadSize; ++i) {
         FairMQMessagePtr msg(NewMessageFor(mInputChannelName, 0));
+
         Receive(msg, mInputChannelName);
-        LOG(INFO) << std::hex << *static_cast<char*>(msg->GetData()) << std::dec;
+
+        LOG(INFO) << i << " " << std::hex << *static_cast<uint64_t*>(msg->GetData()) << std::dec;
+
         mMessages.push_back(std::move(msg));
     }
 

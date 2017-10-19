@@ -116,6 +116,8 @@ bool ReadoutDevice::ConditionalRun()
 
     mO2DataHeader.payloadSize = linkO2Data.mReadoutData.size();
 
+    LOG(INFO) << "Sending " << mO2DataHeader.payloadSize << " payloads.";
+
     FairMQMessagePtr header(NewMessageFor(mOutChannelName, 0, sizeof(mO2DataHeader)));
     memcpy(header->GetData(), &mO2DataHeader, sizeof(mO2DataHeader));
 
