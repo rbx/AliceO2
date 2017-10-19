@@ -56,10 +56,10 @@ bool StfBuilderDevice::ConditionalRun()
     // without this memcopy, mO2DataHeader->payloadSize gives wrong number
     memcpy(&mO2DataHeader, header->GetData(), header->GetSize());
 
-    if (mO2DataHeader.payloadSize > 128) {
-        LOG(ERROR) << "PayloadSize too large! Stopping... " << mO2DataHeader.payloadSize;
-        return false;
-    }
+    // if (mO2DataHeader.payloadSize > 128) {
+    //     LOG(ERROR) << "PayloadSize too large! Stopping... " << mO2DataHeader.payloadSize;
+    //     return false;
+    // }
 
     // LOG(INFO) << "Receiving " << mO2DataHeader.payloadSize << " payloads.";
 
@@ -70,7 +70,7 @@ bool StfBuilderDevice::ConditionalRun()
 
         // LOG(INFO) << i << " " << std::hex << *static_cast<uint64_t*>(msg->GetData()) << std::dec;
 
-        mMessages.push_back(std::move(msg));
+        mMessages.emplace_back(std::move(msg));
     }
 
     /* Collect min of cStfSize of data chunks and forward the STF */
@@ -82,7 +82,7 @@ bool StfBuilderDevice::ConditionalRun()
             std::lock_guard<std::mutex> lock(mStfLock);
             mStfs.emplace_back(std::move(mMessages));
         }
-        mMessages.clear();
+        mMessages = std::vector<FairMQMessagePtr>();
     }
 
     return true;
@@ -94,12 +94,21 @@ void StfBuilderDevice::StfOutputThread()
 
     while (CheckCurrentState(RUNNING)) {
         std::vector<FairMQMessagePtr> lStf;
+
         {
-            std::lock_guard<std::mutex> lock(mStfLock);
-            if (mStfs.empty()) {
-                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            bool isEmpty = false;
+            {
+                std::lock_guard<std::mutex> lock(mStfLock);
+                isEmpty = mStfs.empty();
+            }
+
+            if (isEmpty) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(2));
                 continue; // TODO: block on a condvar
             }
+
+            std::lock_guard<std::mutex> lock(mStfLock);
+
             lStf = std::move(mStfs.front());
             mStfs.pop_front();
         }

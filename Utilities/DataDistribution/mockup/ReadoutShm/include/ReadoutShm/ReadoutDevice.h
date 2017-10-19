@@ -61,6 +61,7 @@ public:
   // address must match shm fairmq messages sent out
   void get_data_buffer(const char *dataBufferAddr, const std::size_t dataBuffSize);
   void put_data_buffer(const char *dataBufferAddr, const std::size_t dataBuffSize);
+  size_t free_superpages();
 
 private:
   std::size_t                                               mSuperpageSize;

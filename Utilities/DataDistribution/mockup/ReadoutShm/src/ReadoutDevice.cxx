@@ -78,6 +78,8 @@ bool ReadoutDevice::ConditionalRun()
   // descriptors
   const auto sleepTime = std::chrono::microseconds(1000000 * (cNumCruLinks * mSuperpageSize) / (cStfPerSec * cStfSize));
 
+  LOG(INFO) << "Free superpages: "<< mCRUMemoryHandler.free_superpages();
+
   for (auto link = 0; link < cNumCruLinks; link++) {
 
     CRUSuperpage sp;
@@ -127,7 +129,7 @@ bool ReadoutDevice::ConditionalRun()
 
     mO2DataHeader.payloadSize = linkO2Data.mReadoutData.size();
 
-    LOG(INFO) << "Sending " << mO2DataHeader.payloadSize << " payloads.";
+    // LOG(INFO) << "Sending " << mO2DataHeader.payloadSize << " payloads.";
 
     FairMQMessagePtr header(NewMessageFor(mOutChannelName, 0, sizeof(mO2DataHeader)));
     memcpy(header->GetData(), &mO2DataHeader, sizeof(mO2DataHeader));
@@ -251,10 +253,16 @@ void CRUMemoryHandler::put_superpage(const char *spVirtAddr)
   mSuperpages.push(mVirtToSuperpage[spVirtAddr]);
 }
 
+size_t CRUMemoryHandler::free_superpages()
+{
+  std::lock_guard<std::mutex> lock(mLock);
+
+  return mSuperpages.size();
+}
+
 void CRUMemoryHandler::get_data_buffer(const char *dataBufferAddr, const std::size_t dataBuffSize)
 {
-  const char *spStartAddr = reinterpret_cast<char*>((uintptr_t)dataBufferAddr &
-    ~((uintptr_t)mSuperpageSize - 1));
+  const char *spStartAddr = reinterpret_cast<char*>((uintptr_t)dataBufferAddr & ~((uintptr_t)mSuperpageSize - 1));
 
   std::lock_guard<std::mutex> lock(mLock);
 
@@ -270,8 +278,7 @@ void CRUMemoryHandler::get_data_buffer(const char *dataBufferAddr, const std::si
 
 void CRUMemoryHandler::put_data_buffer(const char *dataBufferAddr, const std::size_t dataBuffSize)
 {
-  const char *spStartAddr = reinterpret_cast<char*>((uintptr_t)dataBufferAddr &
-    ~((uintptr_t)mSuperpageSize - 1));
+  const char *spStartAddr = reinterpret_cast<char*>((uintptr_t)dataBufferAddr & ~((uintptr_t)mSuperpageSize - 1));
 
   if (spStartAddr < mDataStartAddress ||
     spStartAddr > mDataStartAddress + mDataRegionSize) {
@@ -307,10 +314,14 @@ void CRUMemoryHandler::put_data_buffer(const char *dataBufferAddr, const std::si
 
   if (spBuffMap.size() > 1) {
     spBuffMap.erase(dataBufferAddr);
-  } else {
+  } else if (spBuffMap.size() == 1) {
     mUsedSuperPages.erase(spStartAddr);
     mSuperpages.push(mVirtToSuperpage[spStartAddr]);
+    LOG(DEBUG) << "Superpage returned to CRU";
+  } else {
+    LOG(ERROR) << "Superpage chunk lost";
   }
+
 }
 
 } } } /* namespace o2::DataDistribution::mockup */

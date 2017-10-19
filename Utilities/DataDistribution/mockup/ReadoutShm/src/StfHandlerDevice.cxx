@@ -45,7 +45,7 @@ bool StfHandlerDevice::ConditionalRun()
 
   assert(mO2DataHeader.dataDescription == o2::Header::gDataDescriptionSubTimeFrame);
 
-  // LOG(INFO) << "Receiving " << mO2DataHeader.payloadSize << " payloads.";
+  LOG(INFO) << "Receiving " << mO2DataHeader.payloadSize << " payloads.";
 
   for (int i = 0; i < mO2DataHeader.payloadSize; ++i) {
       FairMQMessagePtr msg(NewMessageFor(mInputChannelName, 0));
@@ -54,7 +54,7 @@ bool StfHandlerDevice::ConditionalRun()
 
       // LOG(INFO) << i << " " << std::hex << *static_cast<uint64_t*>(msg->GetData()) << std::dec;
 
-      mMessages.push_back(std::move(msg));
+      mMessages.emplace_back(std::move(msg));
   }
 
   LOG(INFO) << "StfHandler-I: received STF consisting of " << mMessages.size() << " messages.";
