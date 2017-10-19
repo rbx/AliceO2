@@ -30,6 +30,7 @@ void ReadoutDevice::InitTask()
   auto oldmDataRegionSize = mDataRegionSize;
   auto oldmDescRegionSize = mDescRegionSize;
   mOutChannelName = GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
+  mFreeShmChannelName = GetConfig()->GetValue<std::string>(OptionKeyFreeShmChannelName);
   mDataRegionSize = GetConfig()->GetValue<std::size_t>(OptionKeyReadoutDataRegionSize);
   mDescRegionSize = GetConfig()->GetValue<std::size_t>(OptionKeyReadoutDescRegionSize);
   mSuperpageSize = GetConfig()->GetValue<std::size_t>(OptionKeyReadoutSuperpageSize);
@@ -50,6 +51,16 @@ void ReadoutDevice::InitTask()
   mCRUMemoryHandler.init(mDataRegion.get(), mDescRegion.get(), mSuperpageSize);
 }
 
+void ReadoutDevice::PreRun()
+{
+  mFreeShmThread = std::thread(&ReadoutDevice::FreeShmThread, this);
+}
+
+void ReadoutDevice::PostRun()
+{
+  mFreeShmThread.join();
+}
+
 bool ReadoutDevice::ConditionalRun()
 {
   static const size_t cStfPerSec = 25;    /* (50) Parametrize this */
@@ -68,10 +79,10 @@ bool ReadoutDevice::ConditionalRun()
   const auto sleepTime = std::chrono::microseconds(1000000 * (cNumCruLinks * mSuperpageSize) / (cStfPerSec * cStfSize));
 
   for (auto link = 0; link < cNumCruLinks; link++) {
-    LOG(INFO) << "preparing link " << link;
+
     CRUSuperpage sp;
     if (!mCRUMemoryHandler.get_superpage(sp)) {
-      LOG(ERROR) << "Losing data! No superpages available!";
+      // LOG(ERROR) << "Losing data! No superpages available!";
       continue;
     }
 
@@ -145,6 +156,25 @@ bool ReadoutDevice::ConditionalRun()
   std::this_thread::sleep_for(sleepTime);
   return true;
 }
+
+void ReadoutDevice::FreeShmThread()
+{
+  while (CheckCurrentState(RUNNING)) {
+    FairMQMessagePtr msg(NewMessageFor(mFreeShmChannelName, 0));
+
+    Receive(msg, mFreeShmChannelName);
+
+    char *address = static_cast<char*>(msg->GetData());
+    size_t len = msg->GetSize();
+    // LOG(INFO) << "Received for freeing " << std::hex << *reinterpret_cast<uint64_t*>(address) << std::dec;
+
+    mCRUMemoryHandler.put_data_buffer(address, len);
+  }
+
+  LOG(INFO) << "Readout-FreeSHM: Thread exiting";
+}
+
+
 
 void CRUMemoryHandler::teardown()
 {
@@ -245,7 +275,12 @@ void CRUMemoryHandler::put_data_buffer(const char *dataBufferAddr, const std::si
 
   if (spStartAddr < mDataStartAddress ||
     spStartAddr > mDataStartAddress + mDataRegionSize) {
-    LOG(ERROR) << "Returned data buffer outside of the data segment!";
+    LOG(ERROR) << "Returned data buffer outside of the data segment! " << std::hex
+      << reinterpret_cast<uintptr_t>(spStartAddr) << " "
+      << reinterpret_cast<uintptr_t>(dataBufferAddr) << " "
+      << reinterpret_cast<uintptr_t>(mDataStartAddress) << " "
+      << reinterpret_cast<uintptr_t>(mDataStartAddress + mDataRegionSize) << std::dec
+      << "(sp, in, base, last)";
     return;
   }
 

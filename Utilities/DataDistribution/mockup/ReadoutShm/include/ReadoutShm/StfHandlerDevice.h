@@ -26,7 +26,7 @@ class StfHandlerDevice : public Base::O2Device
 {
 public:
   static constexpr const char* OptionKeyInputChannelName = "input-channel-name";
-  static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
+  static constexpr const char* OptionKeyFreeShmChannelName = "free-shm-channel-name";
 
   /// Default constructor
   StfHandlerDevice();
@@ -41,7 +41,9 @@ protected:
   bool ConditionalRun() final;
 
   std::string         mInputChannelName;
-  // std::string      mOutputChannelName;
+  std::string         mFreeShmChannelName;
+
+  std::vector<FairMQMessagePtr> mMessages;
 };
 
 } } } /* namespace o2::DataDistribution::mockup */

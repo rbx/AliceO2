@@ -20,18 +20,53 @@
 
 namespace o2 { namespace DataDistribution { namespace mockup {
 
-StfHandlerDevice::StfHandlerDevice() : O2Device{} {}
+StfHandlerDevice::StfHandlerDevice()
+  : O2Device{}
+{}
 
-StfHandlerDevice::~StfHandlerDevice() {}
+StfHandlerDevice::~StfHandlerDevice()
+{}
 
 void StfHandlerDevice::InitTask() {
-  mInputChannelName =
-      GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
-  // mOutputChannelName =
-  // GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
+  mInputChannelName = GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
+  mFreeShmChannelName = GetConfig()->GetValue<std::string>(OptionKeyFreeShmChannelName);
 }
 
-bool StfHandlerDevice::ConditionalRun() { return false; }
+bool StfHandlerDevice::ConditionalRun()
+{
+  FairMQMessagePtr header(NewMessageFor(mInputChannelName, 0));
+
+  Receive(header, mInputChannelName);
+
+  DataHeader mO2DataHeader;
+  // boost is not aligning properly these buffers.
+  // without this memcopy, mO2DataHeader->payloadSize gives wrong number
+  memcpy(&mO2DataHeader, header->GetData(), header->GetSize());
+
+  assert(mO2DataHeader.dataDescription == o2::Header::gDataDescriptionSubTimeFrame);
+
+  // LOG(INFO) << "Receiving " << mO2DataHeader.payloadSize << " payloads.";
+
+  for (int i = 0; i < mO2DataHeader.payloadSize; ++i) {
+      FairMQMessagePtr msg(NewMessageFor(mInputChannelName, 0));
+
+      Receive(msg, mInputChannelName);
+
+      // LOG(INFO) << i << " " << std::hex << *static_cast<uint64_t*>(msg->GetData()) << std::dec;
+
+      mMessages.push_back(std::move(msg));
+  }
+
+  LOG(INFO) << "StfHandler-I: received STF consisting of " << mMessages.size() << " messages.";
+
+  // TODO: feeing back-channel
+  for (auto &chunk : mMessages) {
+    Send(chunk, mFreeShmChannelName);
+  }
+  LOG(INFO) << "StfHandler-O: freed " << mMessages.size() << " chunks.";
+  mMessages.clear();
+
+  return true;
 }
-}
-} /* namespace o2::DataDistribution::mockup */
+
+} } } /* namespace o2::DataDistribution::mockup */

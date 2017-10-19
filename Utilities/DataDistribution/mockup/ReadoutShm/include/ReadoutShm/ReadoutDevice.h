@@ -79,6 +79,7 @@ class ReadoutDevice : public Base::O2Device
 {
 public:
   static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
+  static constexpr const char* OptionKeyFreeShmChannelName = "free-shm-channel-name";
   static constexpr const char* OptionKeyReadoutDataRegionSize = "data-shm-region-size";
   static constexpr const char* OptionKeyReadoutDescRegionSize = "desc-shm-region-size";
   static constexpr const char* OptionKeyReadoutSuperpageSize = "cru-superpage-size";
@@ -94,8 +95,13 @@ public:
 protected:
 
   bool ConditionalRun() final;
+  void PreRun() final;
+  void PostRun() final;
+
+  void FreeShmThread();
 
   std::string      mOutChannelName;
+  std::string      mFreeShmChannelName;
   std::size_t      mDataRegionSize;
   std::size_t      mDescRegionSize;
   std::size_t      mSuperpageSize;
@@ -104,6 +110,7 @@ protected:
   FairMQRegionPtr  mDescRegion = nullptr;
 
   CRUMemoryHandler      mCRUMemoryHandler;
+  std::thread           mFreeShmThread;
 };
 
 } } } /* namespace o2::DataDistribution::mockup */

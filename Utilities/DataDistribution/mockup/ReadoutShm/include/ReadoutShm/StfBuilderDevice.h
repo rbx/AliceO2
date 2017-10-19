@@ -17,6 +17,7 @@
 #include <deque>
 #include <mutex>
 #include <condition_variable>
+#include <deque>
 
 class FairMQRegionSHM;
 
@@ -38,11 +39,22 @@ public:
 
 protected:
 
+  void PreRun() final;
+  void PostRun() final;
   bool ConditionalRun() final;
+
+  void StfOutputThread();
 
   std::string      mInputChannelName;
   std::string      mOutputChannelName;
   std::vector<FairMQMessagePtr> mMessages;
+
+  std::thread                                 mOutputThread;
+  std::deque<std::vector<FairMQMessagePtr>>   mStfs;
+  std::mutex                                  mStfLock;
+
+  const size_t cStfSize = (50ULL << 20); /* 50MiB */
+  const size_t cChunkSize = (8 << 10); /* 8kiB */
 };
 
 } } } /* namespace o2::DataDistribution::mockup */

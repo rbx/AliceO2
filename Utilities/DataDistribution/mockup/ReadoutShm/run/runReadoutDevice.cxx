@@ -19,6 +19,8 @@ void addCustomOptions(bpo::options_description &options) {
   options.add_options()
     (o2::DataDistribution::mockup::ReadoutDevice::OptionKeyOutputChannelName,
      bpo::value<std::string>()->default_value("readout"), "Name of the readout output channel")
+    (o2::DataDistribution::mockup::ReadoutDevice::OptionKeyFreeShmChannelName,
+     bpo::value<std::string>()->default_value("free-shm"), "Name of the free shm chunks channel")
     (o2::DataDistribution::mockup::ReadoutDevice::OptionKeyReadoutDataRegionSize,
      bpo::value<std::size_t>()->default_value(1ULL << 30 /* 1GiB */), "Size of the data shm segment")
     (o2::DataDistribution::mockup::ReadoutDevice::OptionKeyReadoutDescRegionSize,
