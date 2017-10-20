@@ -19,8 +19,6 @@
 #include <mutex>
 #include <condition_variable>
 
-class FairMQRegionSHM;
-
 namespace o2 { namespace DataDistribution { namespace mockup {
 
 struct RawDmaPacketDesc {
@@ -50,7 +48,7 @@ public:
   CRUMemoryHandler() = default;
   ~CRUMemoryHandler() { teardown(); }
 
-  void init(FairMQRegion *dataRegion, FairMQRegion *descRegion, size_t sp_size);
+  void init(FairMQUnmanagedRegion *dataRegion, FairMQUnmanagedRegion *descRegion, size_t sp_size);
   void teardown();
 
   bool get_superpage(CRUSuperpage &sp);
@@ -107,8 +105,8 @@ protected:
   std::size_t      mDescRegionSize;
   std::size_t      mSuperpageSize;
 
-  FairMQRegionPtr  mDataRegion = nullptr;
-  FairMQRegionPtr  mDescRegion = nullptr;
+  FairMQUnmanagedRegionPtr  mDataRegion = nullptr;
+  FairMQUnmanagedRegionPtr  mDescRegion = nullptr;
 
   CRUMemoryHandler      mCRUMemoryHandler;
   std::thread           mFreeShmThread;

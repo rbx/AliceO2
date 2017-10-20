@@ -12,7 +12,6 @@
 #include "ReadoutShm/ReadoutO2DataModel.h"
 
 #include <options/FairMQProgOptions.h>
-#include <shmem/FairMQRegionSHM.h>
 #include <FairMQLogger.h>
 
 #include <chrono>

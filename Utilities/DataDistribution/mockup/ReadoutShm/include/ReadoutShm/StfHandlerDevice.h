@@ -18,8 +18,6 @@
 #include <mutex>
 #include <condition_variable>
 
-class FairMQRegionSHM;
-
 namespace o2 { namespace DataDistribution { namespace mockup {
 
 class StfHandlerDevice : public Base::O2Device

@@ -15,20 +15,20 @@
 
 #include <vector>
 
-class FairMQRegion;
+class FairMQUnmanagedRegion;
 
 namespace o2 { namespace DataDistribution { namespace mockup {
 
 using DataHeader = o2::Header::DataHeader;
 
 struct CruDmaPacket {
-  FairMQRegion   *mDataSHMRegion = nullptr;
-  size_t            mDataOffset;
-  size_t            mDataSize;
+  FairMQUnmanagedRegion *mDataSHMRegion = nullptr;
+  size_t                mDataOffset;
+  size_t                mDataSize;
 
-  FairMQRegion   *mDescSHMRegion = nullptr;
-  size_t            mDescOffset;
-  size_t            mDescSize;
+  FairMQUnmanagedRegion *mDescSHMRegion = nullptr;
+  size_t                mDescOffset;
+  size_t                mDescSize;
 };
 
 

@@ -19,8 +19,6 @@
 #include <condition_variable>
 #include <deque>
 
-class FairMQRegionSHM;
-
 namespace o2 { namespace DataDistribution { namespace mockup {
 
 class StfBuilderDevice : public Base::O2Device

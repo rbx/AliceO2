@@ -12,7 +12,6 @@
 #include "ReadoutShm/ReadoutO2DataModel.h"
 
 #include <options/FairMQProgOptions.h>
-#include <shmem/FairMQRegionSHM.h>
 #include <FairMQLogger.h>
 
 #include <chrono>
@@ -45,8 +44,8 @@ void ReadoutDevice::InitTask()
 
   // Open SHM regions (segments)
 
-  mDataRegion = NewRegionFor(mOutChannelName, 0, mDataRegionSize);
-  mDescRegion = NewRegionFor(mOutChannelName, 0, mDescRegionSize);
+  mDataRegion = NewUnmanagedRegionFor(mOutChannelName, 0, mDataRegionSize);
+  mDescRegion = NewUnmanagedRegionFor(mOutChannelName, 0, mDescRegionSize);
 
   mCRUMemoryHandler.init(mDataRegion.get(), mDescRegion.get(), mSuperpageSize);
 }
@@ -185,8 +184,8 @@ void CRUMemoryHandler::teardown()
   mSuperpages = std::stack<CRUSuperpage>();
 }
 
-void CRUMemoryHandler::init(FairMQRegion *dataRegion,
-                            FairMQRegion *descRegion, size_t superpageSize)
+void CRUMemoryHandler::init(FairMQUnmanagedRegion *dataRegion,
+                            FairMQUnmanagedRegion *descRegion, size_t superpageSize)
 {
   teardown();
 
