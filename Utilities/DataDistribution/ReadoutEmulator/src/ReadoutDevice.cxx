@@ -65,8 +65,7 @@ void ReadoutDevice::InitTask()
   // Open SHM regions (segments)
   mDataRegion = NewUnmanagedRegionFor(
     mOutChannelName, 0, mDataRegionSize,
-    [this](void* data, size_t size) { // callback to be called when message buffers no longer needed by transport
-      // LOG(INFO) << "Returning message ";
+    [this](void* data, size_t size, void *hint) { // callback to be called when message buffers no longer needed by transport
       mCruMemoryHandler->put_data_buffer(static_cast<char*>(data), size);
     });
 

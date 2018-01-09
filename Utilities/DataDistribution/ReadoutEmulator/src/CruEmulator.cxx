@@ -11,7 +11,6 @@
 #include "ReadoutEmulator/CruEmulator.h"
 #include "Common/ConcurrentQueue.h"
 
-#include <fairmq/FairMQDevice.h> /* NewUnmanagedRegionFor */
 #include <options/FairMQProgOptions.h>
 #include <FairMQLogger.h>
 
