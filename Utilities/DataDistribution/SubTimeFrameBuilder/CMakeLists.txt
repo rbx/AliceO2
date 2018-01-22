@@ -19,6 +19,7 @@ O2_SETUP(NAME ${MODULE_NAME})
 # SubTimeFrameBuilderDevice lib
 
 set(SRCS
+    src/SubTimeFrameBuilderInput.cxx
     src/SubTimeFrameBuilderDevice.cxx
 )
 

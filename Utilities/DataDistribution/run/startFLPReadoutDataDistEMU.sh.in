@@ -1,0 +1,45 @@
+#!/bin/bash
+
+shmmonitor --cleanup
+
+O2DEV_CONFIG_EMU="@CMAKE_BINARY_DIR@/bin/config/readout-flp-chain-emu.json"
+READOUT_CONFIG_EMU="@CMAKE_BINARY_DIR@/bin/config/readout_cfg/readout_emu.cfg"
+
+IO_THREADS=2
+
+READOUT="readout.exe"
+READOUT+=" file://$READOUT_CONFIG_EMU"
+
+BUILDER="SubTimeFrameBuilderDevice"
+BUILDER+=" --id builder"
+BUILDER+=" --transport shmem"
+BUILDER+=" --mq-config $O2DEV_CONFIG_EMU"
+BUILDER+=" --cru-count 1"
+BUILDER+=" --io-threads $IO_THREADS"
+
+HANDLER="SubTimeFrameTransporterDevice"
+HANDLER+=" --id handler"
+HANDLER+=" --transport shmem"
+HANDLER+=" --mq-config $O2DEV_CONFIG_EMU"
+HANDLER+=" --io-threads $IO_THREADS"
+
+if [[ -z $USE_TMUX ]]; then
+  xterm -geometry 90x57+0+0 -hold -e $READOUT &
+  xterm -geometry 90x57+1120+0 -hold -e @CMAKE_BINARY_DIR@/bin/$BUILDER &
+  xterm -geometry 90x57+1680+0 -hold -e @CMAKE_BINARY_DIR@/bin/$HANDLER &
+else
+  # poor man's tmux environment cloning; make sure you're running tmux in control center (-CC) mode
+  ENV_VAR_FILE=$(mktemp)
+  typeset -gx > $ENV_VAR_FILE
+  # cat $ENV_VAR_FILE
+
+  tmux -CC \
+    new-window \
+    "source $ENV_VAR_FILE; echo $READOUT; $READOUT; read" \; \
+    split-window \
+    "source $ENV_VAR_FILE; echo @CMAKE_BINARY_DIR@/bin/$BUILDER; @CMAKE_BINARY_DIR@/bin/$BUILDER; read" \; \
+    split-window  \
+    "source $ENV_VAR_FILE; echo @CMAKE_BINARY_DIR@/bin/$HANDLER; @CMAKE_BINARY_DIR@/bin/$HANDLER; read" \; \
+    select-layout even-horizontal
+
+fi

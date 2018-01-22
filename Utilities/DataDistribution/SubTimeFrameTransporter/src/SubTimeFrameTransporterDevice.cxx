@@ -37,7 +37,7 @@ void StfHandlerDevice::InitTask()
 bool StfHandlerDevice::ConditionalRun()
 {
   static auto sStartTime = std::chrono::high_resolution_clock::now();
-  O2SubTimeFrame lStf;
+  SubTimeFrame lStf;
 
 #if STF_SERIALIZATION == 1
   InterleavedHdrDataDeserializer lStfReceiver(*this, mInputChannelName, 0);
@@ -58,10 +58,15 @@ bool StfHandlerDevice::ConditionalRun()
   // Do something with the STF
 
   // Stf Readout messages will be returned when lStf goes of the scope!
-  // TODO: remove getsize when fix for region mapping lands
-  lStf.getDataSize();
+  {
+    // is there a ratelimited LOG?
+    static unsigned long floodgate = 0;
+    if (++floodgate % 100 == 1)
+      LOG(DEBUG) << "TF[" << lStf.Header().mId << "] size: " << lStf.getDataSize();
+  }
 
   return true;
 }
+
 }
 } /* namespace o2::DataDistribution */

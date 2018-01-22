@@ -16,6 +16,8 @@
 #include "Common/ConcurrentQueue.h"
 #include "Common/Utilities.h"
 
+#include "SubTimeFrameBuilder/SubTimeFrameBuilderInput.h"
+
 #include <O2Device/O2Device.h>
 
 #include <TApplication.h>
@@ -26,15 +28,14 @@
 #include <mutex>
 #include <condition_variable>
 
-#include <atomic>
-
 namespace o2 {
 namespace DataDistribution {
 
-// class TH1F;
-
 class StfBuilderDevice : public Base::O2Device {
 public:
+
+  constexpr static int gStfOutputChanId = 0;
+
   static constexpr const char* OptionKeyInputChannelName = "input-channel-name";
   static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
 
@@ -48,12 +49,16 @@ public:
 
   void InitTask() final;
 
+  const std::string& getInputChannelName() const { return mInputChannelName; }
+  const std::string& getOutputChannelName() const { return mOutputChannelName; }
+
+  void QueueStf(SubTimeFrame &&pStf) { mStfQueue.push(std::move(pStf)); }
+
 protected:
   void PreRun() final;
   void PostRun() final;
   bool ConditionalRun() final;
 
-  void RawDataInputThread(unsigned pCruId);
   void StfOutputThread();
 
   void GuiThread();
@@ -63,16 +68,13 @@ protected:
   std::string mOutputChannelName;
   std::uint64_t mCruCount;
 
-  /// Internal queues
-  ConcurrentFifo<O2SubTimeFrameLinkData> mReadoutLinkDataQueue;
-  ConcurrentFifo<O2SubTimeFrame> mStfQueue;
+  /// Input Interface handler
+  StfInputInterface mReadoutInterface;
 
-  /// New STF signal
-  /// TODO: this is part of O2 Readout interface
-  std::atomic<std::uint64_t> mCurrentStfId;
+  /// Internal queues
+  ConcurrentFifo<SubTimeFrame> mStfQueue;
 
   /// Internal threads
-  std::vector<std::thread> mInputThreads;
   std::thread mOutputThread;
 
   /// Root stuff
@@ -82,7 +84,7 @@ protected:
   std::thread mGuiThread;
 
   RunningSamples<uint64_t> mStfSizeSamples;
-  RunningSamples<float> mStfLinkDataSamples;
+  RunningSamples<float> mStfFreqSamples;
   RunningSamples<float> mStfDataTimeSamples;
 };
 }

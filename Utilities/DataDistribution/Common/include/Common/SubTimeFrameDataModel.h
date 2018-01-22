@@ -27,6 +27,27 @@ namespace DataDistribution {
 using namespace o2::Base;
 using namespace o2::Header;
 
+struct EquipmentIdentifier
+{
+  DataDescription                   mDataDescription;
+  DataOrigin                        mDataOrigin;
+  DataHeader::SubSpecificationType  mSubSpecification; /* uint64_t */
+
+  bool operator<(const EquipmentIdentifier &other) const {
+    if (mDataDescription < other.mDataDescription)
+      return true;
+    else if (mDataDescription == other.mDataDescription && mSubSpecification < other.mSubSpecification)
+      return true;
+    else if (mDataDescription == other.mDataDescription && mSubSpecification == other.mSubSpecification && mSubSpecification < other.mSubSpecification)
+      return true;
+    else
+      return false;
+  }
+};
+
+////////////////////////////////////////////////////////////////////////////////
+/// Visitor friends
+////////////////////////////////////////////////////////////////////////////////
 #define DECLARE_STF_FRIENDS                         \
   friend class InterleavedHdrDataSerializer;        \
   friend class InterleavedHdrDataDeserializer;      \
@@ -35,72 +56,79 @@ using namespace o2::Header;
   friend class DataIdentifierSplitter;
 
 ////////////////////////////////////////////////////////////////////////////////
-/// SubTimeFrameDataSource
+/// EquipmentHBFrames
 ////////////////////////////////////////////////////////////////////////////////
-struct StfDataSourceHeader : public DataHeader {
+struct EquipmentHeader : public DataHeader {
   //
 };
 
-class SubTimeFrameDataSource : public IDataModelObject {
+class EquipmentHBFrames : public IDataModelObject {
   DECLARE_STF_FRIENDS
 public:
-  SubTimeFrameDataSource() = default;
-  ~SubTimeFrameDataSource() = default;
+  EquipmentHBFrames(int pFMQChannelId, const EquipmentIdentifier &pHdr);
+  EquipmentHBFrames() = default;
+  ~EquipmentHBFrames() = default;
   // no copy
-  SubTimeFrameDataSource(const SubTimeFrameDataSource&) = delete;
-  SubTimeFrameDataSource& operator=(const SubTimeFrameDataSource&) = delete;
+  EquipmentHBFrames(const EquipmentHBFrames&) = delete;
+  EquipmentHBFrames& operator=(const EquipmentHBFrames&) = delete;
   // default move
-  SubTimeFrameDataSource(SubTimeFrameDataSource&& a) = default;
-  SubTimeFrameDataSource& operator=(SubTimeFrameDataSource&& a) = default;
+  EquipmentHBFrames(EquipmentHBFrames&& a) = default;
+  EquipmentHBFrames& operator=(EquipmentHBFrames&& a) = default;
 
   void accept(ISubTimeFrameVisitor& v) override { v.visit(*this); };
 
-  void addHBFrames(int pChannelId, O2SubTimeFrameLinkData&& pLinkData);
+  void addHBFrames(std::vector<FairMQMessagePtr> &&pHBFrames);
   std::uint64_t getDataSize() const;
+  const EquipmentIdentifier getEquipmentIdentifier() const;
 
-  const StfDataSourceHeader& Header() const { return *mStfDataSourceHeader; }
+  const EquipmentHeader& Header() const { return *mHeader; }
 
 private:
-  ChannelPtr<StfDataSourceHeader> mStfDataSourceHeader;
-  std::vector<FairMQMessagePtr> mHBFrames;
+  ChannelPtr<EquipmentHeader>      mHeader;
+  std::vector<FairMQMessagePtr>   mHBFrames;
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 /// SubTimeFrame
 ////////////////////////////////////////////////////////////////////////////////
-struct O2StfHeader : public DataHeader {
-  std::uint64_t mStfId;
+struct SubTimeFrameHeader : public DataHeader {
+  std::uint64_t mId;
+  std::uint32_t mMaxHBFrames;
 };
 
-class O2SubTimeFrame : public IDataModelObject {
+class SubTimeFrame : public IDataModelObject {
   DECLARE_STF_FRIENDS
 public:
-  O2SubTimeFrame() = default;
-  ~O2SubTimeFrame() = default;
+  SubTimeFrame(int pFMQChannelId, std::uint64_t pStfId);
+  SubTimeFrame() = default;
+  ~SubTimeFrame() = default;
   // no copy
-  O2SubTimeFrame(const O2SubTimeFrame&) = delete;
-  O2SubTimeFrame& operator=(const O2SubTimeFrame&) = delete;
+  SubTimeFrame(const SubTimeFrame&) = delete;
+  SubTimeFrame& operator=(const SubTimeFrame&) = delete;
   // default move
-  O2SubTimeFrame(O2SubTimeFrame&& a) = default;
-  O2SubTimeFrame& operator=(O2SubTimeFrame&& a) = default;
-
-  O2SubTimeFrame(int pChannelId, uint64_t pStfId);
+  SubTimeFrame(SubTimeFrame&& a) = default;
+  SubTimeFrame& operator=(SubTimeFrame&& a) = default;
 
   void accept(ISubTimeFrameVisitor& v) override { v.visit(*this); };
 
-  void addHBFrames(int pChannelId, O2SubTimeFrameLinkData&& pLinkData);
+  // TODO: add proper equip IDs
+  void addHBFrames(const ReadoutSubTimeframeHeader &pHdr, std::vector<FairMQMessagePtr> &&pHBFrames);
   std::uint64_t getDataSize() const;
 
-  const O2StfHeader& Header() const { return *mStfHeader; }
+  const SubTimeFrameHeader& Header() const { return *mHeader; }
 
 private:
 
-  ChannelPtr<O2StfHeader> mStfHeader;
+  ChannelPtr<SubTimeFrameHeader> mHeader;
 
-  // 1. map: DataIdentifier -> Data (e.g. (TPC, CLUSTERS) => (All cluster data) )
-  // 2. map: SubSpecification -> DataSubset (e.g. (TPC, CLUSTERS, clFinder1000) -> (data from that one source)
-  std::map<DataIdentifier, SubTimeFrameDataSource> mStfReadoutData;
+  // 1. map: EquipmentIdentifier -> Data (e.g. (TPC, CLUSTERS) => (All cluster data) )
+  std::map<EquipmentIdentifier, EquipmentHBFrames> mReadoutData;
+
+  // save the FMQChannelID
+  int mFMQChannelId = -1;
 };
+
+
 }
 } /* o2::DataDistribution */
 

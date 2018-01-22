@@ -28,14 +28,15 @@
 namespace o2 {
 namespace DataDistribution {
 
-constexpr int gStfOutputChanId = 0;
+constexpr int StfBuilderDevice::gStfOutputChanId;
 
 StfBuilderDevice::StfBuilderDevice()
   : O2Device{},
+    mReadoutInterface(*this),
     mStfRootApp("StfBuilderApp", nullptr, nullptr),
     mStfBuilderCanvas("cnv", "STF Builder", 1500, 500),
     mStfSizeSamples(10000),
-    mStfLinkDataSamples(10000),
+    mStfFreqSamples(10000),
     mStfDataTimeSamples(10000)
 {
   mStfBuilderCanvas.Divide(3, 1);
@@ -62,79 +63,55 @@ void StfBuilderDevice::InitTask()
 
 void StfBuilderDevice::PreRun()
 {
-  mCurrentStfId.store(0);
   // start output thread
   mOutputThread = std::thread(&StfBuilderDevice::StfOutputThread, this);
-  // start one thread per CRU readout process
-  for (auto tid = 0; tid < mCruCount; tid++) // tid matches input channel index
-    mInputThreads.emplace_back(std::thread(&StfBuilderDevice::RawDataInputThread, this, tid));
+
+  // start one thread per readout process
+  mReadoutInterface.Start(mCruCount);
+
   // gui thread
   mGuiThread = std::thread(&StfBuilderDevice::GuiThread, this);
 }
 
 void StfBuilderDevice::PostRun()
 {
-  mOutputThread.join(); // stopped by CheckCurrentState(RUNNING)
-  for (auto tid = 0; tid < mCruCount; tid++)
-    mInputThreads[tid].join();
+  // stop readout interface threads
+  mReadoutInterface.Stop();
+
+  // stop the optput thread
+  mOutputThread.join();
 
   mGuiThread.join();
 }
 
 bool StfBuilderDevice::ConditionalRun()
 {
-  thread_local static std::queue<O2SubTimeFrame> sStfInBuilding;
-
-  if (sStfInBuilding.size() == 0)
-    sStfInBuilding.emplace(O2SubTimeFrame{ gStfOutputChanId, mCurrentStfId });
-  else
-    assert(sStfInBuilding.size() == 1);
-
-  O2SubTimeFrame& lCurrentStf = sStfInBuilding.front();
-  std::uint64_t lCurrentStfId = lCurrentStf.Header().mStfId;
-
-  while (CheckCurrentState(RUNNING)) { // loop here for 1 STF, then release
-
-    O2SubTimeFrameLinkData lLinkData;
-    if (!mReadoutLinkDataQueue.pop(lLinkData)) {
-      LOG(WARN) << "Stopping StfSendThread (ConditionalRun)";
-      return false;
-    }
-
-    // check if should stop the current STF and start building another
-    if (lCurrentStfId < lLinkData.mCruLinkHeader->mStfId) {
-      // assert(lCurrentStfId == lLinkData.Header().mStfId - 1);
-
-      if (mBuildHistograms)
-        mStfSizeSamples.Fill(lCurrentStf.getDataSize());
-
-      mStfQueue.push(std::move(lCurrentStf));
-      sStfInBuilding.pop();
-
-      // queue the data chunk into the next STF
-      assert(sStfInBuilding.size() == 0);
-      sStfInBuilding.emplace(O2SubTimeFrame{ gStfOutputChanId, lLinkData.mCruLinkHeader->mStfId });
-      sStfInBuilding.front().addHBFrames(gStfOutputChanId, std::move(lLinkData));
-      return true; // TODO: move into a real thread to avoid this strangeness
-    }
-
-    // add the data to the current STF
-    lCurrentStf.addHBFrames(gStfOutputChanId, std::move(lLinkData));
-  }
-
-  return false;
+  // ugh: sleep for a while
+  usleep(500000);
+  return true;
 }
 
 void StfBuilderDevice::StfOutputThread()
 {
   while (CheckCurrentState(RUNNING)) {
-    O2SubTimeFrame lStf;
+    SubTimeFrame lStf;
+
+    const auto lFreqStartTime = std::chrono::high_resolution_clock::now();
 
     if (!mStfQueue.pop(lStf)) {
       LOG(WARN) << "Stopping StfOutputThread...";
       return;
     }
 
+    if (mBuildHistograms)
+      mStfFreqSamples.Fill(
+        1.0 / std::chrono::duration<double>(
+        std::chrono::high_resolution_clock::now() - lFreqStartTime).count());
+
+
+    const auto lStartTime = std::chrono::high_resolution_clock::now();
+
+#ifdef STF_FILTER_EXAMPLE
     // EXAMPLE:
     // split one SubTimeFrame into per detector SubTimeFrames (this is unlikely situation for a STF
     // but still... The TimeFrame structure should be similar)
@@ -142,15 +119,13 @@ void StfBuilderDevice::StfOutputThread()
     static const DataIdentifier cITSDataIdentifier(gDataDescriptionAny, gDataOriginITS);
 
     DataIdentifierSplitter lStfDetectorSplitter;
-    O2SubTimeFrame lStfTPC = lStfDetectorSplitter.split(lStf, cTPCDataIdentifier, gStfOutputChanId);
-    O2SubTimeFrame lStfITS = lStfDetectorSplitter.split(lStf, cITSDataIdentifier, gStfOutputChanId);
+    SubTimeFrame lStfTPC = lStfDetectorSplitter.split(lStf, cTPCDataIdentifier, gStfOutputChanId);
+    SubTimeFrame lStfITS = lStfDetectorSplitter.split(lStf, cITSDataIdentifier, gStfOutputChanId);
 
     if (mBuildHistograms) {
       mStfSizeSamples.Fill(lStfTPC.getDataSize());
       mStfSizeSamples.Fill(lStfITS.getDataSize());
     }
-
-    const auto lStartTime = std::chrono::high_resolution_clock::now();
 
 #if STF_SERIALIZATION == 1
     InterleavedHdrDataSerializer lStfSerializer;
@@ -163,73 +138,36 @@ void StfBuilderDevice::StfOutputThread()
 #else
 #error "Unknown STF_SERIALIZATION type"
 #endif
+#else
 
+    // Send the STF without filtering
+#if STF_SERIALIZATION == 1
+    InterleavedHdrDataSerializer lStfSerializer;
+#elif STF_SERIALIZATION == 2
+    HdrDataSerializer lStfSerializer;
+#else
+#error "Unknown STF_SERIALIZATION type"
+#endif
+
+    if (mBuildHistograms)
+      mStfSizeSamples.Fill(lStf.getDataSize());
+
+    lStfSerializer.serialize(lStf, *this, mOutputChannelName, 0);
+
+#endif
     double lTimeMs =
       std::chrono::duration<double, std::micro>(std::chrono::high_resolution_clock::now() - lStartTime).count();
     mStfDataTimeSamples.Fill(lTimeMs / 1000.0);
   }
 }
 
-void StfBuilderDevice::RawDataInputThread(unsigned pCruId)
-{
-  while (CheckCurrentState(RUNNING)) {
-    try
-    {
-      // receive channel object info
-      ReadoutStfBuilderObjectInfo lObjectInfo(*this, mInputChannelName, pCruId);
-      switch (lObjectInfo.mObjectType) {
-        case eStfStart: {
-          // TODO: readout interface
-          // simply check if we have seen that STF ID already
-
-          // Test and test-and-set approach
-          std::uint64_t lCurrentStfId = mCurrentStfId;
-          if (lCurrentStfId < lObjectInfo.mStfId)
-            mCurrentStfId.compare_exchange_weak(lCurrentStfId, lObjectInfo.mStfId);
-          continue; // don't expect a 'data' object
-          break;
-        }
-        case eReadoutData: {
-          try
-          {
-            const auto lStartTime = std::chrono::high_resolution_clock::now();
-            O2SubTimeFrameLinkData lLinkData(*this, mInputChannelName, pCruId);
-
-            if (mBuildHistograms)
-              mStfLinkDataSamples.Fill(std::chrono::duration<double, std::micro>(
-                std::chrono::high_resolution_clock::now() - lStartTime).count());
-
-            lLinkData.mCruLinkHeader->mStfId = mCurrentStfId;
-            // Done! Queue it up.
-            mReadoutLinkDataQueue.push(std::move(lLinkData));
-          }
-          catch (std::runtime_error& e)
-          {
-            LOG(ERROR) << "CRU Link Data receive failed. Stopping RawDataInputThread[" << pCruId << "]...";
-            return;
-          }
-          break;
-        }
-        default: {
-          LOG(ERROR) << "Unknown object type on the input channel RawDataInputThread[" << pCruId << "]...";
-          return; // change device state to stop?
-        }
-      }
-    }
-    catch (std::runtime_error& e)
-    {
-      LOG(ERROR) << "ObjectInfo Receive failed. Stopping RawDataInputThread[" << pCruId << "]...";
-      return;
-    }
-  }
-}
 
 void StfBuilderDevice::GuiThread()
 {
   while (CheckCurrentState(RUNNING)) {
     LOG(INFO) << "Updating histograms...";
 
-    TH1F lStfSizeHist("StfSizeH", "Readout data size per STF", 64, 0.0, 400e+6);
+    TH1F lStfSizeHist("StfSizeH", "Readout data size per STF", 100, 0.0, 400e+6);
     lStfSizeHist.GetXaxis()->SetTitle("Size [B]");
     for (const auto v : mStfSizeSamples)
       lStfSizeHist.Fill(v);
@@ -237,15 +175,15 @@ void StfBuilderDevice::GuiThread()
     mStfBuilderCanvas.cd(1);
     lStfSizeHist.Draw();
 
-    TH1F lStfLinkDataTimeHist("SuperpageChanTimeH", "LinkData on-channel time", 100, 0.0, 3000);
-    lStfLinkDataTimeHist.GetXaxis()->SetTitle("Time [us]");
-    for (const auto v : mStfLinkDataSamples)
-      lStfLinkDataTimeHist.Fill(v);
+    TH1F lStfFreqHist("STFFreq", "SubTimeFrame frequency", 200, 0.0, 100.0);
+    lStfFreqHist.GetXaxis()->SetTitle("Frequecy [Hz]");
+    for (const auto v : mStfFreqSamples)
+      lStfFreqHist.Fill(v);
 
     mStfBuilderCanvas.cd(2);
-    lStfLinkDataTimeHist.Draw();
+    lStfFreqHist.Draw();
 
-    TH1F lStfDataTimeHist("StfChanTimeH", "STF on-channel time", 100, 0.0, 30.0);
+    TH1F lStfDataTimeHist("StfChanTimeH", "STF on-channel time", 200, 0.0, 30.0);
     lStfDataTimeHist.GetXaxis()->SetTitle("Time [ms]");
     for (const auto v : mStfDataTimeSamples)
       lStfDataTimeHist.Fill(v);

@@ -12,7 +12,6 @@
 #define ALICEO2_READOUT_DATAMODEL_H_
 
 #include "Common/Utilities.h"
-#include "Common/DataModelUtils.h"
 
 #include "O2Device/O2Device.h"
 #include "Headers/DataHeader.h"
@@ -28,77 +27,22 @@ using namespace o2::Base;
 using namespace o2::Header;
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Readout - STF Builder channel multiplexer
-////////////////////////////////////////////////////////////////////////////////
-
-enum ReadoutStfBuilderObjectType {
-  eStfStart,   // info in the object itself
-  eReadoutData // an O2SubTimeFrameLinkData follows
-};
-
-struct ReadoutStfBuilderObjectInfo : public DataHeader {
-  ReadoutStfBuilderObjectInfo() : DataHeader()
-  {
-    headerSize = sizeof(ReadoutStfBuilderObjectInfo);
-    dataDescription = gDataDescriptionInfo;
-    payloadSerializationMethod = gSerializationMethodNone;
-  }
-
-  ReadoutStfBuilderObjectInfo(O2Device& pDevice, const std::string& pChan, const int pChanId)
-  {
-    if (!receive(pDevice, pChan, pChanId))
-      throw std::runtime_error("receive error");
-  }
-
-  bool send(O2Device& pDevice, const std::string& pChan, const int pChanId);
-  bool receive(O2Device& pDevice, const std::string& pChan, const int pChanId);
-
-  // multiplex on this
-  ReadoutStfBuilderObjectType mObjectType;
-
-  // might as well piggyback this info to avoid dedicated message
-  std::uint64_t mStfId;
-};
-
-////////////////////////////////////////////////////////////////////////////////
 /// CRU Link
 ////////////////////////////////////////////////////////////////////////////////
 
-// This data struct is transmitted 'atomically' by the Readout
-struct O2CruLinkHeader : public DataHeader {
-  unsigned mCruId; // keeps track where to return data chunks
-  unsigned mCruLinkId;
-  std::uint64_t mStfId; // TODO: move to interface
+// FIXME: copied from Readout/SubTimeframe.h
+// definition of a header message for a subtimeframe
+// subtimeframe made of 1 message with this header
+// followed by 1 message for each heartbeat-frame
+// All data come from the same data source (same linkId - but possibly different FEE ids)
+
+struct ReadoutSubTimeframeHeader {
+  uint32_t timeframeId; // id of timeframe
+  uint32_t numberOfHBF; // number of HB frames (i.e. following messages)
+  uint8_t linkId; // common link id of all data in this HBframe
 };
 
-class O2SubTimeFrameLinkData : public IDataModelObject {
-public:
-  O2SubTimeFrameLinkData() = default;
-  ~O2SubTimeFrameLinkData() = default;
-  // no copy
-  O2SubTimeFrameLinkData(const O2SubTimeFrameLinkData&) = delete;
-  O2SubTimeFrameLinkData& operator=(const O2SubTimeFrameLinkData&) = delete;
-  // default move
-  O2SubTimeFrameLinkData(O2SubTimeFrameLinkData&& a) = default;
-  O2SubTimeFrameLinkData& operator=(O2SubTimeFrameLinkData&& a) = default;
 
-  /// 'Receive' constructor
-  O2SubTimeFrameLinkData(O2Device& pDevice, const std::string& pChan, const int pChanId)
-  {
-    if (!receive(pDevice, pChan, pChanId))
-      throw std::runtime_error("receive error");
-  }
-
-  void accept(ISubTimeFrameVisitor&) override{};
-
-  std::uint64_t getRawDataSize() const;
-
-  bool send(O2Device& pDevice, const std::string& pChan, const int pChanId);
-  bool receive(O2Device& pDevice, const std::string& pChan, const int pChanId);
-
-  ChannelPtr<O2CruLinkHeader> mCruLinkHeader;
-  std::vector<FairMQMessagePtr> mLinkDataChunks; //  HBFrames
-};
 }
 } /* o2::DataDistribution */
 

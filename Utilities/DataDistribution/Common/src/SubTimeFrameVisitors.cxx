@@ -26,31 +26,31 @@ namespace DataDistribution {
 /// InterleavedHdrDataSerializer
 ////////////////////////////////////////////////////////////////////////////////
 
-void InterleavedHdrDataSerializer::visit(SubTimeFrameDataSource& pStfDataSource)
+void InterleavedHdrDataSerializer::visit(EquipmentHBFrames& pHBFrames)
 {
   // header
-  mMessages.emplace_back(std::move(pStfDataSource.mStfDataSourceHeader.getMessage()));
+  mMessages.emplace_back(std::move(pHBFrames.mHeader.getMessage()));
 
   // iterate all Hbfs
-  std::move(std::begin(pStfDataSource.mHBFrames), std::end(pStfDataSource.mHBFrames), std::back_inserter(mMessages));
+  std::move(std::begin(pHBFrames.mHBFrames), std::end(pHBFrames.mHBFrames), std::back_inserter(mMessages));
 
   // clean the object
-  assert(!pStfDataSource.mStfDataSourceHeader);
-  pStfDataSource.mHBFrames.clear();
+  assert(!pHBFrames.mHeader);
+  pHBFrames.mHBFrames.clear();
 }
 
-void InterleavedHdrDataSerializer::visit(O2SubTimeFrame& pStf)
+void InterleavedHdrDataSerializer::visit(SubTimeFrame& pStf)
 {
   // header
-  mMessages.emplace_back(std::move(pStf.mStfHeader.getMessage()));
+  mMessages.emplace_back(std::move(pStf.mHeader.getMessage()));
 
-  for (auto& lDataSourceKey : pStf.mStfReadoutData) {
+  for (auto& lDataSourceKey : pStf.mReadoutData) {
     auto& lDataSource = lDataSourceKey.second;
     lDataSource.accept(*this);
   }
 }
 
-void InterleavedHdrDataSerializer::serialize(O2SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan,
+void InterleavedHdrDataSerializer::serialize(SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan,
                                              const int pChanId)
 {
   mMessages.clear();
@@ -67,7 +67,7 @@ void InterleavedHdrDataSerializer::serialize(O2SubTimeFrame& pStf, O2Device& pDe
 /// InterleavedHdrDataDeserializer
 ////////////////////////////////////////////////////////////////////////////////
 
-void InterleavedHdrDataDeserializer::visit(SubTimeFrameDataSource& pStfDataSource)
+void InterleavedHdrDataDeserializer::visit(EquipmentHBFrames& pHBFrames)
 {
   int ret;
   // header
@@ -75,20 +75,20 @@ void InterleavedHdrDataDeserializer::visit(SubTimeFrameDataSource& pStfDataSourc
   if ((ret = mDevice.Receive(lHdrMsg, mChan, mChanId)) < 0)
     throw std::runtime_error("LinkDataHeader receive failed (err = " + std::to_string(ret) + ")");
 
-  pStfDataSource.mStfDataSourceHeader = std::move(lHdrMsg);
+  pHBFrames.mHeader = std::move(lHdrMsg);
 
   // iterate all HBFrames
-  for (size_t i = 0; i < pStfDataSource.mStfDataSourceHeader->payloadSize; i++) {
+  for (size_t i = 0; i < pHBFrames.mHeader->payloadSize; i++) {
     FairMQMessagePtr lHbfMsg(mDevice.NewMessageFor(mChan, mChanId));
 
     if ((ret = mDevice.Receive(lHbfMsg, mChan, mChanId)) < 0)
       throw std::runtime_error("STFrame receive failed (err = " + std::to_string(ret) + ")");
 
-    pStfDataSource.mHBFrames.emplace_back(std::move(lHbfMsg));
+    pHBFrames.mHBFrames.emplace_back(std::move(lHbfMsg));
   }
 }
 
-void InterleavedHdrDataDeserializer::visit(O2SubTimeFrame& pStf)
+void InterleavedHdrDataDeserializer::visit(SubTimeFrame& pStf)
 {
   int ret;
   // header
@@ -96,18 +96,18 @@ void InterleavedHdrDataDeserializer::visit(O2SubTimeFrame& pStf)
   if ((ret = mDevice.Receive(lHdrMsg, mChan, mChanId)) < 0)
     throw std::runtime_error("StfHeader receive failed (err = " + std::to_string(ret) + ")");
 
-  pStf.mStfHeader = std::move(lHdrMsg);
+  pStf.mHeader = std::move(lHdrMsg);
 
   // iterate over all incoming HBFrame data sources
-  for (size_t i = 0; i < pStf.mStfHeader->payloadSize; i++) {
-    SubTimeFrameDataSource lDataSource;
+  for (size_t i = 0; i < pStf.mHeader->payloadSize; i++) {
+    EquipmentHBFrames lDataSource;
     lDataSource.accept(*this);
 
-    pStf.mStfReadoutData[lDataSource.mStfDataSourceHeader->getDataIdentifier()] = std::move(lDataSource);
+    pStf.mReadoutData.emplace(lDataSource.getEquipmentIdentifier(), std::move(lDataSource));
   }
 }
 
-bool InterleavedHdrDataDeserializer::deserialize(O2SubTimeFrame& pStf)
+bool InterleavedHdrDataDeserializer::deserialize(SubTimeFrame& pStf)
 {
   try
   {
@@ -131,30 +131,30 @@ bool InterleavedHdrDataDeserializer::deserialize(O2SubTimeFrame& pStf)
 /// HdrDataSerializer
 ////////////////////////////////////////////////////////////////////////////////
 
-void HdrDataSerializer::visit(SubTimeFrameDataSource& pStfDataSource)
+void HdrDataSerializer::visit(EquipmentHBFrames& pHBFrames)
 {
   // header
-  mHeaderMessages.emplace_back(std::move(pStfDataSource.mStfDataSourceHeader.getMessage()));
+  mHeaderMessages.emplace_back(std::move(pHBFrames.mHeader.getMessage()));
 
   // iterate all Hbfs
-  std::move(std::begin(pStfDataSource.mHBFrames), std::end(pStfDataSource.mHBFrames),
+  std::move(std::begin(pHBFrames.mHBFrames), std::end(pHBFrames.mHBFrames),
             std::back_inserter(mDataMessages));
 
-  assert(!pStfDataSource.mStfDataSourceHeader);
-  pStfDataSource.mHBFrames.clear();
+  assert(!pHBFrames.mHeader);
+  pHBFrames.mHBFrames.clear();
 }
 
-void HdrDataSerializer::visit(O2SubTimeFrame& pStf)
+void HdrDataSerializer::visit(SubTimeFrame& pStf)
 {
-  mHeaderMessages.emplace_back(std::move(pStf.mStfHeader.getMessage()));
+  mHeaderMessages.emplace_back(std::move(pStf.mHeader.getMessage()));
 
-  for (auto& lDataSourceKey : pStf.mStfReadoutData) {
+  for (auto& lDataSourceKey : pStf.mReadoutData) {
     auto& lDataSource = lDataSourceKey.second;
     lDataSource.accept(*this);
   }
 }
 
-void HdrDataSerializer::serialize(O2SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId)
+void HdrDataSerializer::serialize(SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId)
 {
   mHeaderMessages.clear();
   mDataMessages.clear();
@@ -187,35 +187,35 @@ void HdrDataSerializer::serialize(O2SubTimeFrame& pStf, O2Device& pDevice, const
 /// HdrDataVisitor
 ////////////////////////////////////////////////////////////////////////////////
 
-void HdrDataDeserializer::visit(SubTimeFrameDataSource& pStfDataSource)
+void HdrDataDeserializer::visit(EquipmentHBFrames& pHBFrames)
 {
-  pStfDataSource.mStfDataSourceHeader = std::move(mHeaderMessages.front());
+  pHBFrames.mHeader = std::move(mHeaderMessages.front());
   mHeaderMessages.pop_front();
 
-  const auto lHBFramesCnt = pStfDataSource.mStfDataSourceHeader->payloadSize;
+  const auto lHBFramesCnt = pHBFrames.mHeader->payloadSize;
 
   // iterate all HBFrames
   std::move(std::begin(mDataMessages), std::begin(mDataMessages) + lHBFramesCnt,
-            std::back_inserter(pStfDataSource.mHBFrames));
+            std::back_inserter(pHBFrames.mHBFrames));
 
   mDataMessages.erase(std::begin(mDataMessages), std::begin(mDataMessages) + lHBFramesCnt);
 }
 
-void HdrDataDeserializer::visit(O2SubTimeFrame& pStf)
+void HdrDataDeserializer::visit(SubTimeFrame& pStf)
 {
-  pStf.mStfHeader = std::move(mHeaderMessages.front());
+  pStf.mHeader = std::move(mHeaderMessages.front());
   mHeaderMessages.pop_front();
 
   // iterate over all incoming HBFrame data sources
-  for (size_t i = 0; i < pStf.mStfHeader->payloadSize; i++) {
-    SubTimeFrameDataSource lDataSource;
+  for (size_t i = 0; i < pStf.mHeader->payloadSize; i++) {
+    EquipmentHBFrames lDataSource;
     lDataSource.accept(*this);
 
-    pStf.mStfReadoutData[lDataSource.mStfDataSourceHeader->getDataIdentifier()] = std::move(lDataSource);
+    pStf.mReadoutData.emplace(lDataSource.getEquipmentIdentifier(), std::move(lDataSource));
   }
 }
 
-bool HdrDataDeserializer::deserialize(O2SubTimeFrame& pStf)
+bool HdrDataDeserializer::deserialize(SubTimeFrame& pStf)
 {
   int ret;
 
@@ -279,5 +279,6 @@ bool HdrDataDeserializer::deserialize(O2SubTimeFrame& pStf)
   }
   return true;
 }
+
 }
 } /* o2::DataDistribution */

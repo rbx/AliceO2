@@ -8,6 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
+#include "Common/ReadoutDataModel.h"
 #include "Common/SubTimeFrameDataModel.h"
 
 #include <map>
@@ -18,36 +19,44 @@ namespace o2 {
 namespace DataDistribution {
 
 ////////////////////////////////////////////////////////////////////////////////
-/// SubTimeFrameDataSource
+/// EquipmentHBFrames
 ////////////////////////////////////////////////////////////////////////////////
-void SubTimeFrameDataSource::addHBFrames(int pChannelId, O2SubTimeFrameLinkData&& pLinkData)
+
+EquipmentHBFrames::EquipmentHBFrames(int pFMQChannelId, const EquipmentIdentifier &pHdr)
 {
-  if (mHBFrames.empty()) {
-    // take over the header message
-    assert(!mStfDataSourceHeader);
-    mStfDataSourceHeader = make_channel_ptr<StfDataSourceHeader>(pChannelId);
+  mHeader = make_channel_ptr<EquipmentHeader>(pFMQChannelId);
 
-    // TODO: initialize the header properly (slicing)
-    memcpy(mStfDataSourceHeader, pLinkData.mCruLinkHeader, sizeof(DataHeader));
-
-    mHBFrames = std::move(pLinkData.mLinkDataChunks);
-  } else {
-    assert(pLinkData.mCruLinkHeader);
-    assert(pLinkData.mCruLinkHeader->dataOrigin == mStfDataSourceHeader->dataOrigin);
-    assert(pLinkData.mCruLinkHeader->dataDescription == mStfDataSourceHeader->dataDescription);
-    assert(pLinkData.mCruLinkHeader->subSpecification == mStfDataSourceHeader->subSpecification);
-
-    // just add chunks to the link vector
-    std::move(std::begin(pLinkData.mLinkDataChunks), std::end(pLinkData.mLinkDataChunks),
-              std::back_inserter(mHBFrames));
-    pLinkData.mLinkDataChunks.clear();
-  }
-
-  // Update payload count
-  mStfDataSourceHeader->payloadSize = mHBFrames.size();
+  mHeader->dataDescription = pHdr.mDataDescription;
+  mHeader->dataOrigin = pHdr.mDataOrigin;
+  mHeader->subSpecification = pHdr.mSubSpecification;
+  mHeader->headerSize = sizeof(EquipmentHBFrames);
 }
 
-std::uint64_t SubTimeFrameDataSource::getDataSize() const
+const EquipmentIdentifier EquipmentHBFrames::getEquipmentIdentifier() const
+{
+  EquipmentIdentifier lEquipId;
+  lEquipId.mDataDescription = mHeader->dataDescription;
+  lEquipId.mDataOrigin = mHeader->dataOrigin;
+  lEquipId.mSubSpecification = mHeader->subSpecification;
+
+  return lEquipId;
+}
+
+void EquipmentHBFrames::addHBFrames(std::vector<FairMQMessagePtr> &&pHBFrames)
+{
+  std::move(
+    pHBFrames.begin(),
+    pHBFrames.end(),
+    std::back_inserter(mHBFrames)
+  );
+
+  pHBFrames.clear();
+
+  // Update payload count
+  mHeader->payloadSize = mHBFrames.size();
+}
+
+std::uint64_t EquipmentHBFrames::getDataSize() const
 {
   std::uint64_t lDataSize = 0;
   for (const auto& lHBFrame : mHBFrames) {
@@ -56,40 +65,58 @@ std::uint64_t SubTimeFrameDataSource::getDataSize() const
   }
   return lDataSize;
 }
+
 ////////////////////////////////////////////////////////////////////////////////
 /// SubTimeFrame
 ////////////////////////////////////////////////////////////////////////////////
-O2SubTimeFrame::O2SubTimeFrame(int pChannelId, uint64_t pStfId)
+SubTimeFrame::SubTimeFrame(int pFMQChannelId, uint64_t pStfId)
 {
-  mStfHeader = make_channel_ptr<O2StfHeader>(pChannelId);
+  mFMQChannelId = pFMQChannelId;
 
-  mStfHeader->headerSize = sizeof(O2StfHeader);
-  mStfHeader->dataDescription = o2::Header::gDataDescriptionSubTimeFrame;
-  mStfHeader->dataOrigin = o2::Header::gDataOriginFLP;
-  mStfHeader->payloadSerializationMethod = o2::Header::gSerializationMethodNone; // Stf serialization?
-  mStfHeader->payloadSize = 0;                                                   // to hold # of CRUs in the FLP
-  mStfHeader->mStfId = pStfId;
+  mHeader = make_channel_ptr<SubTimeFrameHeader>(mFMQChannelId);
+
+  mHeader->mId = pStfId;
+  mHeader->headerSize = sizeof(SubTimeFrameHeader);
+  mHeader->dataDescription = o2::Header::gDataDescriptionSubTimeFrame;
+  mHeader->dataOrigin = o2::Header::gDataOriginFLP;
+  mHeader->payloadSerializationMethod = o2::Header::gSerializationMethodNone; // Stf serialization?
+  mHeader->payloadSize = 0;                                                   // to hold # of CRUs in the FLP
 }
 
-void O2SubTimeFrame::addHBFrames(int pChannelId, O2SubTimeFrameLinkData&& pLinkData)
+void SubTimeFrame::addHBFrames(const ReadoutSubTimeframeHeader &pHdr, std::vector<FairMQMessagePtr> &&pHBFrames)
 {
-  // retrieve or add
-  mStfReadoutData[pLinkData.mCruLinkHeader->getDataIdentifier()].addHBFrames(pChannelId, std::move(pLinkData));
+  // FIXME: proper equipment specification
+  EquipmentIdentifier lEquipId;
+  lEquipId.mDataDescription = o2::Header::gDataDescriptionRawData;
+  lEquipId.mDataOrigin = o2::Header::gDataOriginTPC;
+  lEquipId.mSubSpecification = pHdr.linkId;
+
+  if (mReadoutData.find(lEquipId) == mReadoutData.end()) {
+    /* add a HBFrame collection for the new equipment */
+    mReadoutData.emplace(
+      std::piecewise_construct,
+      std::make_tuple(lEquipId),
+      std::make_tuple(mFMQChannelId, lEquipId)
+    );
+  }
+
+  mReadoutData.at(lEquipId).addHBFrames(std::move(pHBFrames));
 
   // update the count
-  mStfHeader->payloadSize = mStfReadoutData.size();
+  mHeader->payloadSize = mReadoutData.size();
 }
 
-std::uint64_t O2SubTimeFrame::getDataSize() const
+std::uint64_t SubTimeFrame::getDataSize() const
 {
   std::uint64_t lDataSize = 0;
 
-  for (auto& lReadoutDataKey : mStfReadoutData) {
+  for (auto& lReadoutDataKey : mReadoutData) {
     auto& lHBFrameData = lReadoutDataKey.second;
     lDataSize += lHBFrameData.getDataSize();
   }
 
   return lDataSize;
 }
+
 }
 } /* o2::DataDistribution */

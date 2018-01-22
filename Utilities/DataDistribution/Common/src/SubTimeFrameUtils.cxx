@@ -26,50 +26,61 @@ namespace DataDistribution {
 ////////////////////////////////////////////////////////////////////////////////
 /// DataOriginSplitter
 ////////////////////////////////////////////////////////////////////////////////
-void DataIdentifierSplitter::visit(SubTimeFrameDataSource& pStf)
+void DataIdentifierSplitter::visit(EquipmentHBFrames&)
 {
   /* identifier filtering only */
 }
 
-void DataIdentifierSplitter::visit(O2SubTimeFrame& pStf)
+void DataIdentifierSplitter::visit(SubTimeFrame& pStf)
 {
+  std::vector<EquipmentIdentifier> lToErase;
+
   if (mDataIdentifier.dataOrigin == gDataOriginAny) {
     mSubTimeFrame = std::move(pStf);
   } else if (mDataIdentifier.dataDescription == gDataDescriptionAny) {
-    std::vector<DataIdentifier> lToErase;
     // filter any source with requested origin
-    for (auto &lKeyData : pStf.mStfReadoutData) {
-      const DataIdentifier& lIden = lKeyData.first;
-      if (lIden.dataOrigin == mDataIdentifier.dataOrigin) {
-        // use data identifier of the object
-        mSubTimeFrame.mStfReadoutData[lIden] = std::move(lKeyData.second);
+    for (auto &lKeyData : pStf.mReadoutData) {
+      const EquipmentIdentifier& lIden = lKeyData.first;
+      if (lIden.mDataOrigin == mDataIdentifier.dataOrigin) {
+        // use the equipment identifier of the object
+        mSubTimeFrame.mReadoutData[lIden] = std::move(lKeyData.second);
         lToErase.emplace_back(lIden);
       }
     }
-    // erase forked elements
-    for (auto &lIden : lToErase)
-      pStf.mStfReadoutData.erase(lIden);
 
-  } else if (pStf.mStfReadoutData.count(mDataIdentifier) == 1) {
-    mSubTimeFrame.mStfReadoutData[mDataIdentifier] = std::move(pStf.mStfReadoutData[mDataIdentifier]);
-    pStf.mStfReadoutData.erase(mDataIdentifier);
+  } else {
+    /* find exact match */
+    for (auto &lKeyData : pStf.mReadoutData) {
+      const EquipmentIdentifier& lIden = lKeyData.first;
+      if (lIden.mDataOrigin == mDataIdentifier.dataOrigin &&
+        lIden.mDataDescription == mDataIdentifier.dataDescription) {
+        // use the equipment identifier of the object
+        mSubTimeFrame.mReadoutData[lIden] = std::move(lKeyData.second);
+        lToErase.emplace_back(lIden);
+      }
+    }
   }
 
+  // erase forked elements
+  for (auto &lIden : lToErase)
+    pStf.mReadoutData.erase(lIden);
+
   // update element counts
-  pStf.mStfHeader->payloadSize = pStf.mStfReadoutData.size();
-  mSubTimeFrame.mStfHeader->payloadSize = mSubTimeFrame.mStfReadoutData.size();
+  pStf.mHeader->payloadSize = pStf.mReadoutData.size();
+  mSubTimeFrame.mHeader->payloadSize = mSubTimeFrame.mReadoutData.size();
 }
 
 
-O2SubTimeFrame DataIdentifierSplitter::split(O2SubTimeFrame& pStf, const DataIdentifier& pDataIdent, const int pChanId)
+SubTimeFrame DataIdentifierSplitter::split(SubTimeFrame& pStf, const DataIdentifier& pDataIdent, const int pChanId)
 {
-  mSubTimeFrame = O2SubTimeFrame(pChanId, pStf.Header().mStfId);
+  mSubTimeFrame = SubTimeFrame(pChanId, pStf.Header().mId);
   mDataIdentifier = pDataIdent;
 
   pStf.accept(*this);
 
   return std::move(mSubTimeFrame);
 }
+
 
 }
 } /* o2::DataDistribution */

@@ -109,19 +109,8 @@ bool ReadoutDevice::ConditionalRun()
     (std::chrono::high_resolution_clock::now() - cDataTakingStart) - (lNumberSentStfs * cStfInterval) > cStfInterval;
 
   // Channel multiplexer: Send a header with info to start a new STF
-  if (isStfFinished) {
+  if (isStfFinished)
     lNumberSentStfs += 1;
-
-    ReadoutStfBuilderObjectInfo lObjectInfo;
-    lObjectInfo.mObjectType = eStfStart;
-    lObjectInfo.mStfId = lNumberSentStfs;
-
-    // Send the info object over to the StfBuilderDevice
-    if (!lObjectInfo.send(*this, mOutChannelName, 0)) {
-      LOG(WARN) << "Cannot send ReadoutStfBuilderObjectInfo. Stopping output (ConditionalRun)";
-      return false;
-    }
-  }
 
   ReadoutLinkO2Data lCruLinkData;
   if (!mCruMemoryHandler->getLinkData(lCruLinkData)) {
@@ -138,31 +127,14 @@ bool ReadoutDevice::ConditionalRun()
     return true;
   }
 
-  // Channel multiplexer: Send a header with info (data object to follow)
-  {
-    ReadoutStfBuilderObjectInfo lObjectInfo;
-    lObjectInfo.mObjectType = eReadoutData;
+  ReadoutSubTimeframeHeader lHBFHeader;
+  lHBFHeader.timeframeId = lNumberSentStfs;
+  lHBFHeader.numberOfHBF = lCruLinkData.mLinkRawData.size();
+  lHBFHeader.linkId = lCruLinkData.mLinkDataHeader.subSpecification;
 
-    // Send the info object over to the StfBuilderDevice
-    if (!lObjectInfo.send(*this, mOutChannelName, 0)) {
-      LOG(WARN) << "Cannot send ReadoutStfBuilderObjectInfo. Stopping output (ConditionalRun)";
-      return false;
-    }
-  }
-
-  // create a O2SubTimeFrameLinkData of the ReadoutLinkO2Data (TODO: this step seems redundant)
-  O2SubTimeFrameLinkData lLinkData;
-  lLinkData.mCruLinkHeader = make_channel_ptr<O2CruLinkHeader>(gHbfOutputChanId);
-
-  lLinkData.mCruLinkHeader->headerSize = sizeof(O2CruLinkHeader);
-  lLinkData.mCruLinkHeader->dataDescription = lCruLinkData.mLinkDataHeader.dataDescription;
-  lLinkData.mCruLinkHeader->dataOrigin = lCruLinkData.mLinkDataHeader.dataOrigin;
-  lLinkData.mCruLinkHeader->payloadSerializationMethod = lCruLinkData.mLinkDataHeader.payloadSerializationMethod;
-
-  // important part for STFBuilding:
-  lLinkData.mCruLinkHeader->mCruId = mCruId;
-  lLinkData.mCruLinkHeader->mCruLinkId = lCruLinkData.mLinkDataHeader.subSpecification;
-  lLinkData.mCruLinkHeader->payloadSize = lCruLinkData.mLinkRawData.size();
+  auto lHdrMsg = NewMessageFor(mOutChannelName, 0, sizeof(ReadoutSubTimeframeHeader));
+  std::memcpy(lHdrMsg->GetData(), &lHBFHeader, sizeof(ReadoutSubTimeframeHeader));
+  Send(lHdrMsg, mOutChannelName, 0);
 
   // create messages for the data
   for (const auto& lDmaChunk : lCruLinkData.mLinkRawData) {
@@ -170,14 +142,9 @@ bool ReadoutDevice::ConditionalRun()
     mCruMemoryHandler->get_data_buffer(lDmaChunk.mDataPtr, lDmaChunk.mDataSize);
 
     // create a message out of unmanaged region
-    lLinkData.mLinkDataChunks.emplace_back(
-      NewMessageFor(mOutChannelName, 0, mDataRegion, lDmaChunk.mDataPtr, lDmaChunk.mDataSize));
-  }
+    auto lDataMsg = NewMessageFor(mOutChannelName, 0, mDataRegion, lDmaChunk.mDataPtr, lDmaChunk.mDataSize);
 
-  // Send the object over to the StfBuilderDevice
-  if (!lLinkData.send(*this, mOutChannelName, 0)) {
-    LOG(WARN) << "Cannot send O2SubTimeFrameLinkData. Stopping output (ConditionalRun)";
-    return false;
+    Send(lDataMsg, mOutChannelName, 0);
   }
 
   return true;

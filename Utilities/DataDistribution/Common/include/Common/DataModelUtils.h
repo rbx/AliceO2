@@ -8,33 +8,32 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef ALICEO2_DATAMODEL_UTILS_H_
-#define ALICEO2_DATAMODEL_UTILS_H_
+#ifndef STF_DATAMODEL_UTILS_H_
+#define STF_DATAMODEL_UTILS_H_
 
 namespace o2 {
 namespace DataDistribution {
 
+
 ////////////////////////////////////////////////////////////////////////////////
 /// IDataModelObject interface
 ////////////////////////////////////////////////////////////////////////////////
-class O2SubTimeFrameLinkData;
-class O2SubTimeFrameCruData;
-class O2SubTimeFrameRawData;
-
-class SubTimeFrameDataSource;
-class O2SubTimeFrame;
+class EquipmentHBFrames;
+class SubTimeFrame;
 
 class ISubTimeFrameVisitor {
 public:
-  virtual void visit(O2SubTimeFrame&) = 0;
-  virtual void visit(SubTimeFrameDataSource&) = 0;
+  virtual void visit(SubTimeFrame&) = 0;
+  virtual void visit(EquipmentHBFrames&) = 0;
 };
 
 class IDataModelObject {
 public:
   virtual void accept(ISubTimeFrameVisitor& v) = 0;
 };
+
+
 }
 } /* o2::DataDistribution */
 
-#endif /* ALICEO2_DATAMODEL_UTILS_H_ */
+#endif /* STF_DATAMODEL_UTILS_H_ */

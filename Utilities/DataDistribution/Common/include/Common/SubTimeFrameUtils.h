@@ -27,16 +27,15 @@ namespace DataDistribution {
 class DataIdentifierSplitter : public ISubTimeFrameVisitor {
 public:
   DataIdentifierSplitter() = default;
-  O2SubTimeFrame split(O2SubTimeFrame& pStf, const DataIdentifier& pDataIdent, const int pChanId);
+  SubTimeFrame split(SubTimeFrame& pStf, const DataIdentifier& pDataIdent, const int pChanId);
 
 private:
-  void visit(SubTimeFrameDataSource& pStf) override;
-  void visit(O2SubTimeFrame& pStf) override;
+  void visit(EquipmentHBFrames& pStf) override;
+  void visit(SubTimeFrame& pStf) override;
 
   DataIdentifier mDataIdentifier;
-  O2SubTimeFrame mSubTimeFrame;
+  SubTimeFrame mSubTimeFrame;
 };
-
 
 
 }

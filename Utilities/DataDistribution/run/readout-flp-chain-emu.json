@@ -1,0 +1,49 @@
+{
+    "fairMQOptions": {
+        "devices": [
+            {
+                "id": "builder",
+                "channels": [
+                    {
+                        "name": "readout",
+                        "transport": "shmem",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "connect",
+                                "address": "ipc:///tmp/readout-pipe-0"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "stf-channel",
+                        "transport": "shmem",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "connect",
+                                "address": "ipc:///tmp/stf-pipe-0"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "handler",
+                "channels": [
+                    {
+                        "name": "stf-channel",
+                        "transport": "shmem",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "bind",
+                                "address": "ipc:///tmp/stf-pipe-0"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    }
+}

@@ -152,6 +152,9 @@ inline ChannelPtr<T> make_channel_ptr(const int pChannId, Args&&... args)
   return lPtr;
 }
 
+
+
+
 // TODO: thread safety if widely used
 template <typename T, typename = typename std::enable_if<std::is_arithmetic<T>::value, T>::type>
 class RunningSamples {

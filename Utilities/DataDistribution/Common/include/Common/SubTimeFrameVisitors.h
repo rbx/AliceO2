@@ -30,10 +30,10 @@ namespace DataDistribution {
 class InterleavedHdrDataSerializer : public ISubTimeFrameVisitor {
 public:
   InterleavedHdrDataSerializer() = default;
-  void serialize(O2SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId);
+  void serialize(SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId);
 
-  void visit(SubTimeFrameDataSource& pStf) override;
-  void visit(O2SubTimeFrame& pStf) override;
+  void visit(EquipmentHBFrames& pStf) override;
+  void visit(SubTimeFrame& pStf) override;
 
   std::vector<FairMQMessagePtr> mMessages;
 };
@@ -49,10 +49,10 @@ public:
   {
   }
 
-  bool deserialize(O2SubTimeFrame&);
+  bool deserialize(SubTimeFrame&);
 
-  void visit(SubTimeFrameDataSource& pStf) override;
-  void visit(O2SubTimeFrame& pStf) override;
+  void visit(EquipmentHBFrames& pStf) override;
+  void visit(SubTimeFrame& pStf) override;
 
   std::vector<FairMQMessagePtr> mMessages;
 
@@ -69,10 +69,10 @@ private:
 class HdrDataSerializer : public ISubTimeFrameVisitor {
 public:
   HdrDataSerializer() = default;
-  void serialize(O2SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId);
+  void serialize(SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId);
 
-  void visit(SubTimeFrameDataSource& pStf) override;
-  void visit(O2SubTimeFrame& pStf) override;
+  void visit(EquipmentHBFrames& pStf) override;
+  void visit(SubTimeFrame& pStf) override;
 
   std::vector<FairMQMessagePtr> mHeaderMessages;
   std::vector<FairMQMessagePtr> mDataMessages;
@@ -89,10 +89,10 @@ public:
   {
   }
 
-  void visit(SubTimeFrameDataSource& pStf) override;
-  void visit(O2SubTimeFrame& pStf) override;
+  void visit(EquipmentHBFrames& pStf) override;
+  void visit(SubTimeFrame& pStf) override;
 
-  bool deserialize(O2SubTimeFrame&);
+  bool deserialize(SubTimeFrame&);
 
   std::deque<FairMQMessagePtr> mHeaderMessages;
   std::deque<FairMQMessagePtr> mDataMessages;
@@ -102,6 +102,7 @@ private:
   const std::string& mChan;
   const int mChanId;
 };
+
 }
 } /* o2::DataDistribution */
 

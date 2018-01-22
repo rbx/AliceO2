@@ -17,20 +17,42 @@ namespace bpo = boost::program_options;
 
 void addCustomOptions(bpo::options_description& options)
 {
-  options.add_options()(o2::DataDistribution::ReadoutDevice::OptionKeyOutputChannelName,
-                        bpo::value<std::string>()->default_value("readout"), "Name of the readout output channel")(
+  options.add_options()
+  (
+    o2::DataDistribution::ReadoutDevice::OptionKeyOutputChannelName,
+    bpo::value<std::string>()->default_value("readout"),
+    "Name of the readout output channel"
+  )
+  (
     o2::DataDistribution::ReadoutDevice::OptionKeyReadoutDataRegionSize,
     bpo::value<std::size_t>()->default_value(1ULL << 30 /* 1GiB */),
-    "Size of the data shm segment")(o2::DataDistribution::ReadoutDevice::OptionKeyCruId,
-                                    bpo::value<size_t>()->default_value(0), "CRU ID within FLP. Starts at 0.")(
+    "Size of the data shm segment"
+  )
+  (
+    o2::DataDistribution::ReadoutDevice::OptionKeyCruId,
+    bpo::value<size_t>()->default_value(0),
+    "CRU ID within FLP. Starts at 0."
+  )
+  (
     o2::DataDistribution::ReadoutDevice::OptionKeyCruSuperpageSize,
     bpo::value<size_t>()->default_value(1ULL << 20 /* 1MiB */),
-    "CRU DMA superpage size")(o2::DataDistribution::ReadoutDevice::OptionKeyCruDmaChunkSize,
-                              bpo::value<size_t>()->default_value(8ULL << 10 /* 8kiB */), "CRU DMA chunk size")(
-    o2::DataDistribution::ReadoutDevice::OptionKeyCruLinkCount, bpo::value<uint64_t>()->default_value(24),
-    "Number of CRU links to emulate")(o2::DataDistribution::ReadoutDevice::OptionKeyCruLinkBitsPerS,
-                                      bpo::value<uint64_t>()->default_value(1000000000),
-                                      "Input throughput per link (bits per second)");
+    "CRU DMA superpage size"
+  )
+  (
+    o2::DataDistribution::ReadoutDevice::OptionKeyCruDmaChunkSize,
+    bpo::value<size_t>()->default_value(8ULL << 10 /* 8kiB */),
+    "CRU DMA chunk size"
+  )
+  (
+    o2::DataDistribution::ReadoutDevice::OptionKeyCruLinkCount,
+    bpo::value<uint64_t>()->default_value(24),
+    "Number of CRU links to emulate"
+  )
+  (
+    o2::DataDistribution::ReadoutDevice::OptionKeyCruLinkBitsPerS,
+    bpo::value<uint64_t>()->default_value(1000000000),
+    "Input throughput per link (bits per second)"
+  );
 }
 
 FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)
