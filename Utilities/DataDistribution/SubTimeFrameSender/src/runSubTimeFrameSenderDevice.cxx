@@ -8,7 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#include "SubTimeFrameTransporter/SubTimeFrameTransporterDevice.h"
+#include "SubTimeFrameSender/SubTimeFrameSenderDevice.h"
 #include <options/FairMQProgOptions.h>
 
 #include "runFairMQDevice.h"
@@ -17,11 +17,11 @@ namespace bpo = boost::program_options;
 
 void addCustomOptions(bpo::options_description& options)
 {
-  options.add_options()(o2::DataDistribution::StfHandlerDevice::OptionKeyInputChannelName,
+  options.add_options()(o2::DataDistribution::StfSenderDevice::OptionKeyInputChannelName,
                         bpo::value<std::string>()->default_value("stf-channel"), "Name of the stf channel (input)");
 }
 
 FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)
 {
-  return new o2::DataDistribution::StfHandlerDevice();
+  return new o2::DataDistribution::StfSenderDevice();
 }

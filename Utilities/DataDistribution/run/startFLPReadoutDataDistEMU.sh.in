@@ -17,7 +17,7 @@ BUILDER+=" --mq-config $O2DEV_CONFIG_EMU"
 BUILDER+=" --cru-count 1"
 BUILDER+=" --io-threads $IO_THREADS"
 
-HANDLER="SubTimeFrameTransporterDevice"
+HANDLER="SubTimeFrameSenderDevice"
 HANDLER+=" --id handler"
 HANDLER+=" --transport shmem"
 HANDLER+=" --mq-config $O2DEV_CONFIG_EMU"
@@ -41,5 +41,4 @@ else
     split-window  \
     "source $ENV_VAR_FILE; echo @CMAKE_BINARY_DIR@/bin/$HANDLER; @CMAKE_BINARY_DIR@/bin/$HANDLER; read" \; \
     select-layout even-horizontal
-
 fi

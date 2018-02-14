@@ -8,7 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#include "SubTimeFrameTransporter/SubTimeFrameTransporterDevice.h"
+#include "SubTimeFrameSender/SubTimeFrameSenderDevice.h"
 #include "Common/SubTimeFrameDataModel.h"
 #include "Common/SubTimeFrameVisitors.h"
 
@@ -21,20 +21,20 @@
 namespace o2 {
 namespace DataDistribution {
 
-StfHandlerDevice::StfHandlerDevice() : O2Device{}
+StfSenderDevice::StfSenderDevice() : O2Device{}
 {
 }
 
-StfHandlerDevice::~StfHandlerDevice()
+StfSenderDevice::~StfSenderDevice()
 {
 }
 
-void StfHandlerDevice::InitTask()
+void StfSenderDevice::InitTask()
 {
   mInputChannelName = GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
 }
 
-bool StfHandlerDevice::ConditionalRun()
+bool StfSenderDevice::ConditionalRun()
 {
   static auto sStartTime = std::chrono::high_resolution_clock::now();
   SubTimeFrame lStf;

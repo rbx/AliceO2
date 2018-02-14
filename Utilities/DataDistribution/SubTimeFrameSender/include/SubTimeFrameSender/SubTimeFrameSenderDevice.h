@@ -8,8 +8,8 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef ALICEO2_MOCKUP_STFHANDLER_DEVICE_H_
-#define ALICEO2_MOCKUP_STFHANDLER_DEVICE_H_
+#ifndef ALICEO2_STF_SENDER_DEVICE_H_
+#define ALICEO2_STF_SENDER_DEVICE_H_
 
 #include "Common/SubTimeFrameDataModel.h"
 
@@ -22,16 +22,16 @@
 namespace o2 {
 namespace DataDistribution {
 
-class StfHandlerDevice : public Base::O2Device {
+class StfSenderDevice : public Base::O2Device {
 public:
   static constexpr const char* OptionKeyInputChannelName = "input-channel-name";
   static constexpr const char* OptionKeyFreeShmChannelName = "free-shm-channel-name";
 
   /// Default constructor
-  StfHandlerDevice();
+  StfSenderDevice();
 
   /// Default destructor
-  ~StfHandlerDevice() override;
+  ~StfSenderDevice() override;
 
   void InitTask() final;
 
@@ -39,10 +39,8 @@ protected:
   bool ConditionalRun() final;
 
   std::string mInputChannelName;
-
-  std::uint64_t mDelayUs = 1000;
 };
 }
 } /* namespace o2::DataDistribution */
 
-#endif /* ALICEO2_MOCKUP_STFHANDLER_DEVICE_H_ */
+#endif /* ALICEO2_STF_SENDER_DEVICE_H_ */
