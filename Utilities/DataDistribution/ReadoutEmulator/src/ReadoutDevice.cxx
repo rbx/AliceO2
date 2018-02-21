@@ -26,7 +26,7 @@ ReadoutDevice::ReadoutDevice()
   : O2Device{},
     mCruMemoryHandler{ std::make_shared<CruMemoryHandler>() },
     mRootApp("ReadoutApp", nullptr, nullptr),
-    mReadoutCanvas("cnv", "Readout", 500, 400),
+    mReadoutCanvas(),
     mFreeSuperpagesSamples(10000)
 {
 }
@@ -47,6 +47,8 @@ void ReadoutDevice::InitTask()
 
   mCruLinkCount = GetConfig()->GetValue<std::size_t>(OptionKeyCruLinkCount);
   mCruLinkBitsPerS = GetConfig()->GetValue<std::size_t>(OptionKeyCruLinkBitsPerS);
+
+  mBuildHistograms = GetConfig()->GetValue<bool>(OptionKeyGui);
 
   ChannelAllocator::get().addChannel(gHbfOutputChanId, GetChannel(mOutChannelName, 0));
 
@@ -85,7 +87,10 @@ void ReadoutDevice::PreRun()
     e->start();
 
   // gui thread
-  mGuiThread = std::thread(&ReadoutDevice::GuiThread, this);
+  if (mBuildHistograms) {
+    mReadoutCanvas = std::make_unique<TCanvas>("cnv", "Readout", 500, 400);
+    mGuiThread = std::thread(&ReadoutDevice::GuiThread, this);
+  }
 }
 
 void ReadoutDevice::PostRun()
@@ -95,7 +100,9 @@ void ReadoutDevice::PostRun()
     e->stop();
   // unblock waiters
   mCruMemoryHandler->teardown();
-  mGuiThread.join();
+  if (mBuildHistograms && mGuiThread.joinable()) {
+    mGuiThread.join();
+  }
 }
 
 bool ReadoutDevice::ConditionalRun()
@@ -158,11 +165,11 @@ void ReadoutDevice::GuiThread()
     for (const auto v : mFreeSuperpagesSamples)
       lFreeSuperpagesHist.Fill(v);
 
-    mReadoutCanvas.cd(1);
+    mReadoutCanvas->cd(1);
     lFreeSuperpagesHist.Draw();
 
-    mReadoutCanvas.Modified();
-    mReadoutCanvas.Update();
+    mReadoutCanvas->Modified();
+    mReadoutCanvas->Update();
 
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(5s);

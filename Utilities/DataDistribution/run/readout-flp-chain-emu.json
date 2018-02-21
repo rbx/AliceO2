@@ -16,7 +16,7 @@
                         ]
                     },
                     {
-                        "name": "stf-output-channel",
+                        "name": "builder-stf-channel",
                         "transport": "shmem",
                         "sockets": [
                             {
@@ -32,7 +32,7 @@
                 "id": "sender",
                 "channels": [
                     {
-                        "name": "stf-input-channel",
+                        "name": "builder-stf-channel",
                         "transport": "shmem",
                         "sockets": [
                             {
@@ -43,7 +43,7 @@
                         ]
                     },
                     {
-                        "name": "stf-output-channel",
+                        "name": "sender-stf-channel",
                         "transport": "zeromq",
                         "sockets": [
                             {

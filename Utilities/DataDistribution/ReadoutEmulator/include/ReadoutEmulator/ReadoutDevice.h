@@ -43,6 +43,8 @@ public:
   static constexpr const char* OptionKeyCruLinkCount = "cru-link-count";
   static constexpr const char* OptionKeyCruLinkBitsPerS = "cru-link-bits-per-s";
 
+  static constexpr const char* OptionKeyGui = "gui";
+
   /// Default constructor
   ReadoutDevice();
 
@@ -79,7 +81,7 @@ protected:
   /// Observables
   bool mBuildHistograms = true;
   TApplication mRootApp; // !?
-  TCanvas mReadoutCanvas;
+  std::unique_ptr<TCanvas> mReadoutCanvas;
   std::thread mGuiThread;
 
   RunningSamples<uint64_t> mFreeSuperpagesSamples;

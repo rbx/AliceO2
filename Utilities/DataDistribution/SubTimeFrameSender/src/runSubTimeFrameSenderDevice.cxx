@@ -18,21 +18,21 @@ namespace bpo = boost::program_options;
 void addCustomOptions(bpo::options_description& options)
 {
   options.add_options()
-  (
-    o2::DataDistribution::StfSenderDevice::OptionKeyInputChannelName,
-    bpo::value<std::string>()->default_value("stf-input-channel"),
-    "Name of the input STF channel"
-  )
-  (
-    o2::DataDistribution::StfSenderDevice::OptionKeyOutputChannelName,
-    bpo::value<std::string>()->default_value("stf-output-channel"),
-    "Name of the output STF channel"
-  )
-  (
-    o2::DataDistribution::StfSenderDevice::OptionKeyEpnNodeCount,
-    bpo::value<std::uint32_t>()->default_value(std::uint32_t(0)),
-    "Number of EPN nodes"
-  );
+    (
+      o2::DataDistribution::StfSenderDevice::OptionKeyInputChannelName,
+      bpo::value<std::string>()->default_value("builder-stf-channel"),
+      "Name of the input STF channel"
+    )
+    (
+      o2::DataDistribution::StfSenderDevice::OptionKeyOutputChannelName,
+      bpo::value<std::string>()->default_value("sender-stf-channel"),
+      "Name of the output STF channel"
+    )
+    (
+      o2::DataDistribution::StfSenderDevice::OptionKeyEpnNodeCount,
+      bpo::value<std::uint32_t>()->default_value(std::uint32_t(0)),
+      "Number of EPN nodes"
+    );
 }
 
 FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)

@@ -20,13 +20,18 @@ void addCustomOptions(bpo::options_description& options)
   options.add_options()
   (
     o2::DataDistribution::TfBuilderDevice::OptionKeyInputChannelName,
-    bpo::value<std::string>()->default_value("stf-input-channel"),
+    bpo::value<std::string>()->default_value("sender-stf-channel"),
     "Name of the stf channel (input)"
   )
   (
     o2::DataDistribution::TfBuilderDevice::OptionKeyFlpNodeCount,
     bpo::value<std::uint32_t>()->default_value(std::uint32_t(0)),
     "Number of FLP nodes"
+  )
+  (
+    o2::DataDistribution::TfBuilderDevice::OptionKeyGui,
+    bpo::value<bool>()->default_value(true),
+    "Enable/disable GUI"
   );
 }
 

@@ -54,7 +54,7 @@
                         ]
                     },
                     {
-                        "name": "stf-output-channel",
+                        "name": "builder-stf-channel",
                         "transport": "shmem",
                         "sockets": [
                             {
@@ -71,7 +71,7 @@
                 "id": "stf_sender",
                 "channels": [
                     {
-                        "name": "stf-input-channel",
+                        "name": "builder-stf-channel",
                         "transport": "shmem",
                         "sockets": [
                             {
@@ -82,7 +82,7 @@
                         ]
                     },
                     {
-                        "name": "stf-output-channel",
+                        "name": "sender-stf-channel",
                         "transport": "zeromq",
                         "sockets": [
                             {
@@ -109,7 +109,7 @@
                 "id": "tf_builder-0",
                 "channels": [
                     {
-                        "name": "stf-input-channel",
+                        "name": "sender-stf-channel",
                         "transport": "zeromq",
                         "sockets": [
                             {
@@ -126,7 +126,7 @@
                 "id": "tf_builder-1",
                 "channels": [
                     {
-                        "name": "stf-input-channel",
+                        "name": "sender-stf-channel",
                         "transport": "zeromq",
                         "sockets": [
                             {
@@ -142,7 +142,7 @@
                 "id": "tf_builder-2",
                 "channels": [
                     {
-                        "name": "stf-input-channel",
+                        "name": "sender-stf-channel",
                         "transport": "zeromq",
                         "sockets": [
                             {

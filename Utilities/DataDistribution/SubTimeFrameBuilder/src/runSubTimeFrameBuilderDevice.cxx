@@ -18,21 +18,26 @@ namespace bpo = boost::program_options;
 void addCustomOptions(bpo::options_description& options)
 {
   options.add_options()
-  (
-    o2::DataDistribution::StfBuilderDevice::OptionKeyInputChannelName,
-    bpo::value<std::string>()->default_value("readout"),
-    "Name of the readout channel (input)"
-  )
-  (
-    o2::DataDistribution::StfBuilderDevice::OptionKeyOutputChannelName,
-    bpo::value<std::string>()->default_value("stf-output-channel"),
-    "Name of the output channel"
-  )
-  (
-    o2::DataDistribution::StfBuilderDevice::OptionKeyCruCount,
-    bpo::value<std::uint64_t>()->default_value(1),
-    "Number of CRU Readout processes"
-  );
+    (
+      o2::DataDistribution::StfBuilderDevice::OptionKeyInputChannelName,
+      bpo::value<std::string>()->default_value("readout"),
+      "Name of the readout channel (input)"
+    )
+    (
+      o2::DataDistribution::StfBuilderDevice::OptionKeyOutputChannelName,
+      bpo::value<std::string>()->default_value("builder-stf-channel"),
+      "Name of the output channel"
+    )
+    (
+      o2::DataDistribution::StfBuilderDevice::OptionKeyCruCount,
+      bpo::value<std::uint64_t>()->default_value(1),
+      "Number of CRU Readout processes"
+    )
+    (
+      o2::DataDistribution::StfBuilderDevice::OptionKeyGui,
+      bpo::value<bool>()->default_value(true),
+      "Enable/disable GUI"
+    );
 }
 
 FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)

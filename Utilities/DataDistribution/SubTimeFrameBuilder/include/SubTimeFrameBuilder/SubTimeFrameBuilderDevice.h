@@ -25,6 +25,7 @@
 #include <TH1.h>
 
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <condition_variable>
 
@@ -40,6 +41,8 @@ public:
   static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
 
   static constexpr const char* OptionKeyCruCount = "cru-count";
+
+  static constexpr const char* OptionKeyGui = "gui";
 
   /// Default constructor
   StfBuilderDevice();
@@ -80,7 +83,7 @@ protected:
   /// Root stuff
   bool mBuildHistograms = true;
   TApplication mStfRootApp; // !?
-  TCanvas mStfBuilderCanvas;
+  std::unique_ptr<TCanvas> mStfBuilderCanvas;
   std::thread mGuiThread;
 
   RunningSamples<uint64_t> mStfSizeSamples;

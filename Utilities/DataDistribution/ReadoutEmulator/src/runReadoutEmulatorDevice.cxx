@@ -52,6 +52,11 @@ void addCustomOptions(bpo::options_description& options)
     o2::DataDistribution::ReadoutDevice::OptionKeyCruLinkBitsPerS,
     bpo::value<uint64_t>()->default_value(1000000000),
     "Input throughput per link (bits per second)"
+  )
+  (
+    o2::DataDistribution::ReadoutDevice::OptionKeyGui,
+    bpo::value<bool>()->default_value(true),
+    "Enable/disable GUI"
   );
 }
 

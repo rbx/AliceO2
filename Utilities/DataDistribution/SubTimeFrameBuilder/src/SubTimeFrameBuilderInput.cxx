@@ -60,8 +60,7 @@ void StfInputInterface::DataHandlerThread(const unsigned pInputChannelIdx)
   auto &lInputChan = mDevice.GetChannel(mDevice.getInputChannelName(), pInputChannelIdx);
 
   while (mDevice.CheckCurrentState(StfBuilderDevice::RUNNING)) {
-    try
-    {
+    try {
       // receive channel object info
       FairMQMessagePtr lHdrMsg = lInputChan.NewMessage();
 
@@ -120,8 +119,8 @@ void StfInputInterface::DataHandlerThread(const unsigned pInputChannelIdx)
 
     } catch (std::runtime_error& e) {
       LOG(ERROR) << "Receive failed. Stopping input thread[" << pInputChannelIdx << "]...";
-      if (mDevice.CheckCurrentState(StfBuilderDevice::RUNNING))
-        mDevice.ChangeState(StfBuilderDevice::END);
+      // if (mDevice.CheckCurrentState(StfBuilderDevice::RUNNING))
+      //   mDevice.ChangeState(StfBuilderDevice::END);
       return;
     }
   }

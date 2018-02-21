@@ -24,6 +24,7 @@
 
 #include <deque>
 #include <mutex>
+#include <memory>
 #include <condition_variable>
 
 namespace o2 {
@@ -33,6 +34,7 @@ class TfBuilderDevice : public Base::O2Device {
 public:
   static constexpr const char* OptionKeyInputChannelName = "input-channel-name";
   static constexpr const char* OptionKeyFlpNodeCount = "flp-count";
+  static constexpr const char* OptionKeyGui = "gui";
 
   /// Default constructor
   TfBuilderDevice();
@@ -68,7 +70,7 @@ protected:
   /// Root stuff
   bool mBuildHistograms = true;
   TApplication mTfRootApp; // !?
-  TCanvas mTfBuilderCanvas;
+  std::unique_ptr<TCanvas> mTfBuilderCanvas;
   std::thread mGuiThread;
 
   RunningSamples<uint64_t> mTfSizeSamples;

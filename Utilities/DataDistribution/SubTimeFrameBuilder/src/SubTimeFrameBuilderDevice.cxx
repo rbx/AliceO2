@@ -34,13 +34,11 @@ StfBuilderDevice::StfBuilderDevice()
   : O2Device{},
     mReadoutInterface(*this),
     mStfRootApp("StfBuilderApp", nullptr, nullptr),
-    mStfBuilderCanvas("cnv", "STF Builder", 1500, 500),
+    mStfBuilderCanvas(nullptr),
     mStfSizeSamples(10000),
     mStfFreqSamples(10000),
     mStfDataTimeSamples(10000)
-{
-  mStfBuilderCanvas.Divide(3, 1);
-}
+{}
 
 StfBuilderDevice::~StfBuilderDevice()
 {
@@ -51,6 +49,7 @@ void StfBuilderDevice::InitTask()
   mInputChannelName = GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
   mOutputChannelName = GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
   mCruCount = GetConfig()->GetValue<std::uint64_t>(OptionKeyCruCount);
+  mBuildHistograms = GetConfig()->GetValue<bool>(OptionKeyGui);
 
   ChannelAllocator::get().addChannel(gStfOutputChanId, GetChannel(mOutputChannelName, 0));
 
@@ -66,8 +65,13 @@ void StfBuilderDevice::PreRun()
   mOutputThread = std::thread(&StfBuilderDevice::StfOutputThread, this);
   // start one thread per readout process
   mReadoutInterface.Start(mCruCount);
-  // start the gui thread
-  mGuiThread = std::thread(&StfBuilderDevice::GuiThread, this);
+
+  // gui thread
+  if (mBuildHistograms) {
+    mStfBuilderCanvas = std::make_unique<TCanvas>("cnv", "STF Builder", 1500, 500);
+    mStfBuilderCanvas->Divide(3, 1);
+    mGuiThread = std::thread(&StfBuilderDevice::GuiThread, this);
+  }
 }
 
 void StfBuilderDevice::PostRun()
@@ -77,8 +81,10 @@ void StfBuilderDevice::PostRun()
   // signal and wait for the optput thread
   mStfQueue.stop();
   mOutputThread.join();
-  //wait for the gui thread
-  mGuiThread.join();
+  // wait for the gui thread
+  if (mBuildHistograms && mGuiThread.joinable()) {
+    mGuiThread.join();
+  }
 
   LOG(INFO) << "PostRun() done... ";
 }
@@ -169,8 +175,7 @@ void StfBuilderDevice::StfOutputThread()
 #endif
 
     if (mBuildHistograms) {
-      double lTimeMs = std::chrono::duration<double, std::milli>
-        (std::chrono::high_resolution_clock::now() - lStartTime).count();
+      double lTimeMs = std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - lStartTime).count();
       mStfDataTimeSamples.Fill(lTimeMs);
     }
   }
@@ -189,7 +194,7 @@ void StfBuilderDevice::GuiThread()
     for (const auto v : mStfSizeSamples)
       lStfSizeHist.Fill(v);
 
-    mStfBuilderCanvas.cd(1);
+    mStfBuilderCanvas->cd(1);
     lStfSizeHist.Draw();
 
     TH1F lStfFreqHist("STFFreq", "SubTimeFrame frequency", 200, 0.0, 100.0);
@@ -197,7 +202,7 @@ void StfBuilderDevice::GuiThread()
     for (const auto v : mStfFreqSamples)
       lStfFreqHist.Fill(v);
 
-    mStfBuilderCanvas.cd(2);
+    mStfBuilderCanvas->cd(2);
     lStfFreqHist.Draw();
 
     TH1F lStfDataTimeHist("StfChanTimeH", "STF on-channel time", 200, 0.0, 30.0);
@@ -205,11 +210,11 @@ void StfBuilderDevice::GuiThread()
     for (const auto v : mStfDataTimeSamples)
       lStfDataTimeHist.Fill(v);
 
-    mStfBuilderCanvas.cd(3);
+    mStfBuilderCanvas->cd(3);
     lStfDataTimeHist.Draw();
 
-    mStfBuilderCanvas.Modified();
-    mStfBuilderCanvas.Update();
+    mStfBuilderCanvas->Modified();
+    mStfBuilderCanvas->Update();
 
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(5s);

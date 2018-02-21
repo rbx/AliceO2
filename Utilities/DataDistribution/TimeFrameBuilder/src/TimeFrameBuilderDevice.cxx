@@ -27,11 +27,10 @@ TfBuilderDevice::TfBuilderDevice()
 : O2Device{},
   mFlpInputHandler(*this),
   mTfRootApp("TfBuilderApp", nullptr, nullptr),
-  mTfBuilderCanvas("cnv", "TF Builder", 1000, 500),
+  mTfBuilderCanvas(nullptr),
   mTfSizeSamples(10000),
   mTfFreqSamples(10000)
 {
-  mTfBuilderCanvas.Divide(2, 1);
 }
 
 TfBuilderDevice::~TfBuilderDevice()
@@ -42,6 +41,7 @@ void TfBuilderDevice::InitTask()
 {
   mInputChannelName = GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
   mFlpNodeCount = GetConfig()->GetValue<std::uint32_t>(OptionKeyFlpNodeCount);
+  mBuildHistograms = GetConfig()->GetValue<bool>(OptionKeyGui);
 }
 
 void TfBuilderDevice::PreRun()
@@ -49,7 +49,11 @@ void TfBuilderDevice::PreRun()
   // Start output handlers
   mFlpInputHandler.Start(mFlpNodeCount);
   // start the gui thread
-  mGuiThread = std::thread(&TfBuilderDevice::GuiThread, this);
+  if (mBuildHistograms) {
+    mTfBuilderCanvas = std::make_unique<TCanvas>("cnv", "TF Builder", 1000, 500);
+    mTfBuilderCanvas->Divide(2, 1);
+    mGuiThread = std::thread(&TfBuilderDevice::GuiThread, this);
+  }
 }
 
 void TfBuilderDevice::PostRun()
@@ -60,7 +64,9 @@ void TfBuilderDevice::PostRun()
   // stop output handlers
   mFlpInputHandler.Stop();
   //wait for the gui thread
-  mGuiThread.join();
+  if (mBuildHistograms && mGuiThread.joinable()) {
+    mGuiThread.join();
+  }
 
   LOG(INFO) << "PostRun() done... ";
 }
@@ -70,7 +76,7 @@ bool TfBuilderDevice::ConditionalRun()
   static auto lFreqStartTime = std::chrono::high_resolution_clock::now();
 
   SubTimeFrame lTf;
-  if (!mTfQueue.pop(lTf) ) {
+  if (!mTfQueue.pop(lTf)) {
     LOG(INFO) << "ConditionalRun(): Exiting... ";
     return false;
   }
@@ -111,7 +117,7 @@ void TfBuilderDevice::GuiThread()
     for (const auto v : mTfSizeSamples)
       lTfSizeHist.Fill(v);
 
-    mTfBuilderCanvas.cd(1);
+    mTfBuilderCanvas->cd(1);
     lTfSizeHist.Draw();
 
     TH1F lTfFreqHist("TfFreq", "TimeFrame frequency", 200, 0.0, 100.0);
@@ -119,11 +125,11 @@ void TfBuilderDevice::GuiThread()
     for (const auto v : mTfFreqSamples)
       lTfFreqHist.Fill(v);
 
-    mTfBuilderCanvas.cd(2);
+    mTfBuilderCanvas->cd(2);
     lTfFreqHist.Draw();
 
-    mTfBuilderCanvas.Modified();
-    mTfBuilderCanvas.Update();
+    mTfBuilderCanvas->Modified();
+    mTfBuilderCanvas->Update();
 
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(5s);
