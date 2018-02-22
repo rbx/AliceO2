@@ -25,8 +25,8 @@ namespace DataDistribution {
 
 void CruMemoryHandler::teardown()
 {
-  mO2LinkDataQueue.flush(); // get will not block, return false
-  mSuperpages.flush();
+  mO2LinkDataQueue.stop(); // get will not block, return false
+  mSuperpages.stop();
   std::lock_guard<std::mutex> lock(mLock);
   mVirtToSuperpage.clear();
   mUsedSuperPages.clear();
@@ -34,8 +34,6 @@ void CruMemoryHandler::teardown()
 
 void CruMemoryHandler::init(FairMQUnmanagedRegion* pDataRegion, std::size_t pSuperPageSize, std::size_t pDmaChunkSize)
 {
-  teardown();
-
   mSuperpageSize = pSuperPageSize;
   mDataRegion = pDataRegion;
 

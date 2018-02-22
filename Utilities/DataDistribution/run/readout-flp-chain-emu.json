@@ -16,29 +16,45 @@
                         ]
                     },
                     {
-                        "name": "stf-channel",
+                        "name": "stf-output-channel",
                         "transport": "shmem",
                         "sockets": [
                             {
                                 "type": "pair",
                                 "method": "connect",
-                                "address": "ipc:///tmp/stf-pipe-0"
+                                "address": "ipc:///tmp/stf-builder-pipe-0"
                             }
                         ]
                     }
                 ]
             },
             {
-                "id": "handler",
+                "id": "sender",
                 "channels": [
                     {
-                        "name": "stf-channel",
+                        "name": "stf-input-channel",
                         "transport": "shmem",
                         "sockets": [
                             {
                                 "type": "pair",
                                 "method": "bind",
-                                "address": "ipc:///tmp/stf-pipe-0"
+                                "address": "ipc:///tmp/stf-builder-pipe-0"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "stf-output-channel",
+                        "transport": "zeromq",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "bind",
+                                "address": "tcp://*:23000"
+                            },
+                            {
+                                "type": "pair",
+                                "method": "bind",
+                                "address": "tcp://*:23001"
                             }
                         ]
                     }

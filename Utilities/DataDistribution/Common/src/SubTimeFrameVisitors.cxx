@@ -32,7 +32,11 @@ void InterleavedHdrDataSerializer::visit(EquipmentHBFrames& pHBFrames)
   mMessages.emplace_back(std::move(pHBFrames.mHeader.getMessage()));
 
   // iterate all Hbfs
-  std::move(std::begin(pHBFrames.mHBFrames), std::end(pHBFrames.mHBFrames), std::back_inserter(mMessages));
+  std::move(
+    std::begin(pHBFrames.mHBFrames),
+    std::end(pHBFrames.mHBFrames),
+    std::back_inserter(mMessages)
+  );
 
   // clean the object
   assert(!pHBFrames.mHeader);
@@ -50,15 +54,14 @@ void InterleavedHdrDataSerializer::visit(SubTimeFrame& pStf)
   }
 }
 
-void InterleavedHdrDataSerializer::serialize(SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan,
-                                             const int pChanId)
+void InterleavedHdrDataSerializer::serialize(SubTimeFrame&& pStf)
 {
   mMessages.clear();
 
   pStf.accept(*this);
 
   for (auto& lMsg : mMessages)
-    pDevice.Send(lMsg, pChan, pChanId);
+    mChan.Send(lMsg);
 
   mMessages.clear();
 }
@@ -71,18 +74,19 @@ void InterleavedHdrDataDeserializer::visit(EquipmentHBFrames& pHBFrames)
 {
   int ret;
   // header
-  FairMQMessagePtr lHdrMsg(mDevice.NewMessageFor(mChan, mChanId));
-  if ((ret = mDevice.Receive(lHdrMsg, mChan, mChanId)) < 0)
-    throw std::runtime_error("LinkDataHeader receive failed (err = " + std::to_string(ret) + ")");
+  FairMQMessagePtr lHdrMsg = mChan.NewMessage();
+
+  if ((ret = mChan.Receive(lHdrMsg)) < 0)
+    throw std::runtime_error("Equipment header receive failed (err = " + std::to_string(ret) + ")");
 
   pHBFrames.mHeader = std::move(lHdrMsg);
 
   // iterate all HBFrames
   for (size_t i = 0; i < pHBFrames.mHeader->payloadSize; i++) {
-    FairMQMessagePtr lHbfMsg(mDevice.NewMessageFor(mChan, mChanId));
+    FairMQMessagePtr lHbfMsg = mChan.NewMessage();
 
-    if ((ret = mDevice.Receive(lHbfMsg, mChan, mChanId)) < 0)
-      throw std::runtime_error("STFrame receive failed (err = " + std::to_string(ret) + ")");
+    if ((ret = mChan.Receive(lHbfMsg)) < 0)
+      throw std::runtime_error("HBFrame receive failed (err = " + std::to_string(ret) + ")");
 
     pHBFrames.mHBFrames.emplace_back(std::move(lHbfMsg));
   }
@@ -92,8 +96,9 @@ void InterleavedHdrDataDeserializer::visit(SubTimeFrame& pStf)
 {
   int ret;
   // header
-  FairMQMessagePtr lHdrMsg(mDevice.NewMessageFor(mChan, mChanId));
-  if ((ret = mDevice.Receive(lHdrMsg, mChan, mChanId)) < 0)
+  FairMQMessagePtr lHdrMsg = mChan.NewMessage();
+
+  if ((ret = mChan.Receive(lHdrMsg)) < 0)
     throw std::runtime_error("StfHeader receive failed (err = " + std::to_string(ret) + ")");
 
   pStf.mHeader = std::move(lHdrMsg);
@@ -115,7 +120,7 @@ bool InterleavedHdrDataDeserializer::deserialize(SubTimeFrame& pStf)
   }
   catch (std::runtime_error& e)
   {
-    LOG(ERROR) << "SubTimeFrame deserialization failed. Reason: " << e.what();
+    // LOG(ERROR) << "SubTimeFrame deserialization failed. Reason: " << e.what();
     return false; // TODO: what? O2Device.Receive() does not throw...?
   }
   catch (std::exception& e)
@@ -154,13 +159,13 @@ void HdrDataSerializer::visit(SubTimeFrame& pStf)
   }
 }
 
-void HdrDataSerializer::serialize(SubTimeFrame& pStf, O2Device& pDevice, const std::string& pChan, const int pChanId)
+void HdrDataSerializer::serialize(SubTimeFrame&& pStf)
 {
   mHeaderMessages.clear();
   mDataMessages.clear();
   // add bookkeeping headers to mark how many messages are being sent
-  mHeaderMessages.push_back(std::move(pDevice.NewMessageFor(pChan, pChanId, sizeof(std::size_t))));
-  mDataMessages.push_back(std::move(pDevice.NewMessageFor(pChan, pChanId, sizeof(std::size_t))));
+  mHeaderMessages.push_back(std::move(mChan.NewMessage(sizeof(std::size_t))));
+  mDataMessages.push_back(std::move(mChan.NewMessage(sizeof(std::size_t))));
 
   // get messages
   pStf.accept(*this);
@@ -173,18 +178,18 @@ void HdrDataSerializer::serialize(SubTimeFrame& pStf, O2Device& pDevice, const s
 
   // send headers
   for (auto& lMsg : mHeaderMessages)
-    pDevice.Send(lMsg, pChan, pChanId);
+    mChan.Send(lMsg);
 
   // send data
   for (auto& lMsg : mDataMessages)
-    pDevice.Send(lMsg, pChan, pChanId);
+    mChan.Send(lMsg);
 
   mHeaderMessages.clear();
   mDataMessages.clear();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// HdrDataVisitor
+/// HdrDataDeserializer
 ////////////////////////////////////////////////////////////////////////////////
 
 void HdrDataDeserializer::visit(EquipmentHBFrames& pHBFrames)
@@ -227,16 +232,16 @@ bool HdrDataDeserializer::deserialize(SubTimeFrame& pStf)
     // receive all header messages
     std::size_t lHdrCnt = 0;
     {
-      FairMQMessagePtr lHdrCntMsg(mDevice.NewMessageFor(mChan, mChanId));
-      if ((ret = mDevice.Receive(lHdrCntMsg, mChan, mChanId)) < 0)
+      FairMQMessagePtr lHdrCntMsg(mChan.NewMessage());
+      if ((ret = mChan.Receive(lHdrCntMsg)) < 0)
         return false;
 
       memcpy(&lHdrCnt, lHdrCntMsg->GetData(), sizeof(std::size_t));
     }
 
     for (size_t h = 0; h < lHdrCnt; h++) {
-      FairMQMessagePtr lHdrMsg(mDevice.NewMessageFor(mChan, mChanId));
-      if ((ret = mDevice.Receive(lHdrMsg, mChan, mChanId)) < 0)
+      FairMQMessagePtr lHdrMsg(mChan.NewMessage());
+      if ((ret = mChan.Receive(lHdrMsg)) < 0)
         return false;
 
       mHeaderMessages.push_back(std::move(lHdrMsg));
@@ -245,16 +250,16 @@ bool HdrDataDeserializer::deserialize(SubTimeFrame& pStf)
     // receive all data messages
     std::size_t lDataCnt = 0;
     {
-      FairMQMessagePtr lDataCntMsg(mDevice.NewMessageFor(mChan, mChanId));
-      if ((ret = mDevice.Receive(lDataCntMsg, mChan, mChanId)) < 0)
+      FairMQMessagePtr lDataCntMsg(mChan.NewMessage());
+      if ((ret = mChan.Receive(lDataCntMsg)) < 0)
         return false;
 
       memcpy(&lDataCnt, lDataCntMsg->GetData(), sizeof(std::size_t));
     }
 
     for (size_t d = 0; d < lDataCnt; d++) {
-      FairMQMessagePtr lDataMsg(mDevice.NewMessageFor(mChan, mChanId));
-      if ((ret = mDevice.Receive(lDataMsg, mChan, mChanId)) < 0)
+      FairMQMessagePtr lDataMsg(mChan.NewMessage());
+      if ((ret = mChan.Receive(lDataMsg)) < 0)
         return false;
 
       mDataMessages.push_back(std::move(lDataMsg));

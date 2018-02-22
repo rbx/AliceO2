@@ -22,7 +22,10 @@ namespace o2 {
 namespace DataDistribution {
 using namespace o2::Base;
 
-static constexpr std::uintptr_t gChanPtrAlign = 32;
+static constexpr std::uintptr_t gChanPtrAlign = 8;
+// static constexpr std::uintptr_t gChanPtrAlign = alignof(std::max_align_t);
+
+#define ASSERT(left,operator,right) { if(!((left) operator (right))){ std::cerr << "ASSERT FAILED: " << #left << #operator << #right << " @ " << __FILE__ << " (" << __LINE__ << "). " << #left << "=" << (left) << "; " << #right << "=" << (right) << std::endl; } }
 
 class ChannelAllocator;
 
@@ -48,7 +51,9 @@ public:
 
   ChannelPtr& operator=(FairMQMessagePtr&& a) noexcept
   {
-    assert(a->GetSize() == sizeof(T) + gChanPtrAlign - 1);
+    const auto lAddr = reinterpret_cast<std::uintptr_t>(a->GetData());
+    ASSERT((lAddr & (gChanPtrAlign-1)), ==, 0);
+
     mMessage = std::move(a);
     return *this;
   }
@@ -57,6 +62,7 @@ public:
   {
     mMessage = std::move(p);
   }
+
   void swap(ChannelPtr& p) noexcept
   {
     mMessage.swap(p.mMessage);
@@ -64,8 +70,9 @@ public:
 
   pointer get() const noexcept
   {
-    return reinterpret_cast<pointer>((reinterpret_cast<std::uintptr_t>(mMessage->GetData()) + gChanPtrAlign - 1) /
-                                     gChanPtrAlign * gChanPtrAlign);
+    const auto lAddr = reinterpret_cast<std::uintptr_t>(mMessage->GetData());
+    ASSERT((lAddr & (gChanPtrAlign-1)), ==, 0);
+    return reinterpret_cast<pointer>(lAddr);
   }
 
   reference operator*() const noexcept
@@ -110,24 +117,20 @@ public:
     return sInstance;
   }
 
-  struct ChannelAllocatorPrivate {
-    O2Device* mDevice;
-    std::string mChannelName;
-    int mChannelIdx;
-  };
-
-  void addChannel(const int pChannId, O2Device* pDev, const std::string& pChanName, const int pChanIdx)
+  void addChannel(const int pChannId, const FairMQChannel& pChan)
   {
-    mChannels[pChannId] = ChannelAllocatorPrivate{ pDev, pChanName, pChanIdx };
+    mChannels.emplace(pChannId, pChan);
   }
 
   template <class T>
   ChannelPtr<T> allocate(const int pChannId)
   {
     assert(mChannels.count(pChannId) == 1);
-    ChannelAllocatorPrivate& lChanPriv = mChannels.at(pChannId);
+    const FairMQChannel& lChan = mChannels.at(pChannId);
     FairMQMessagePtr lMessage = std::move(
-      lChanPriv.mDevice->NewMessageFor(lChanPriv.mChannelName, lChanPriv.mChannelIdx, sizeof(T) + gChanPtrAlign - 1));
+      // lChan.NewMessage(sizeof(T) + gChanPtrAlign - 1)
+      lChan.NewMessage(sizeof(T))
+    );
 
     ChannelPtr<T> lChanPtr(lMessage);
 
@@ -140,7 +143,7 @@ private:
   ChannelAllocator(ChannelAllocator&) = delete;
   ChannelAllocator operator=(ChannelAllocator&) = delete;
 
-  std::map<int, ChannelAllocatorPrivate> mChannels;
+  std::map<int, const FairMQChannel&> mChannels;
 };
 
 template <class T, class... Args>

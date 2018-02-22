@@ -39,7 +39,7 @@ BUILDER+=" --cru-count $STF_BLD_NO_INPUTS"
 BUILDER+=" --io-threads $IO_THREADS"
 
 HANDLER="SubTimeFrameSenderDevice"
-HANDLER+=" --id handler"
+HANDLER+=" --id sender"
 HANDLER+=" --transport shmem"
 HANDLER+=" --mq-config $readoutMockupConfig"
 HANDLER+=" --io-threads $IO_THREADS"

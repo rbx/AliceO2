@@ -8,17 +8,15 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#ifndef ALICEO2_STFBUILDER_DEVICE_H_
-#define ALICEO2_STFBUILDER_DEVICE_H_
+#ifndef ALICEO2_TF_BUILDER_DEVICE_H_
+#define ALICEO2_TF_BUILDER_DEVICE_H_
 
-#include "Common/ReadoutDataModel.h"
+#include "TimeFrameBuilder/TimeFrameBuilderInput.h"
 #include "Common/SubTimeFrameDataModel.h"
 #include "Common/ConcurrentQueue.h"
 #include "Common/Utilities.h"
 
-#include "SubTimeFrameBuilder/SubTimeFrameBuilderInput.h"
-
-#include <O2Device/O2Device.h>
+#include "O2Device/O2Device.h"
 
 #include <TApplication.h>
 #include <TCanvas.h>
@@ -31,64 +29,53 @@
 namespace o2 {
 namespace DataDistribution {
 
-class StfBuilderDevice : public Base::O2Device {
+class TfBuilderDevice : public Base::O2Device {
 public:
-
-  constexpr static int gStfOutputChanId = 0;
-
   static constexpr const char* OptionKeyInputChannelName = "input-channel-name";
-  static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
-
-  static constexpr const char* OptionKeyCruCount = "cru-count";
+  static constexpr const char* OptionKeyFlpNodeCount = "flp-count";
 
   /// Default constructor
-  StfBuilderDevice();
+  TfBuilderDevice();
 
   /// Default destructor
-  ~StfBuilderDevice() override;
+  ~TfBuilderDevice() override;
 
   void InitTask() final;
 
   const std::string& getInputChannelName() const { return mInputChannelName; }
-  const std::string& getOutputChannelName() const { return mOutputChannelName; }
+  const std::uint32_t getFlpNodeCount() const { return mFlpNodeCount; }
 
-  void QueueStf(SubTimeFrame &&pStf) { mStfQueue.push(std::move(pStf)); }
+  void QueueTf(SubTimeFrame &&pStf) { mTfQueue.push(std::move(pStf)); }
 
 protected:
   void PreRun() final;
   void PostRun() final;
   bool ConditionalRun() final;
 
-  void StfOutputThread();
-
   void GuiThread();
 
-  /// config
+  /// Configuration
   std::string mInputChannelName;
-  std::string mOutputChannelName;
-  std::uint64_t mCruCount;
+  std::uint32_t mFlpNodeCount;
 
   /// Input Interface handler
-  StfInputInterface mReadoutInterface;
+  TfBuilderInput mFlpInputHandler;
 
   /// Internal queues
-  ConcurrentFifo<SubTimeFrame> mStfQueue;
+  ConcurrentFifo<SubTimeFrame> mTfQueue;
 
-  /// Internal threads
-  std::thread mOutputThread;
 
   /// Root stuff
   bool mBuildHistograms = true;
-  TApplication mStfRootApp; // !?
-  TCanvas mStfBuilderCanvas;
+  TApplication mTfRootApp; // !?
+  TCanvas mTfBuilderCanvas;
   std::thread mGuiThread;
 
-  RunningSamples<uint64_t> mStfSizeSamples;
-  RunningSamples<float> mStfFreqSamples;
-  RunningSamples<float> mStfDataTimeSamples;
+  RunningSamples<uint64_t> mTfSizeSamples;
+  RunningSamples<float> mTfFreqSamples;
 };
 
 }
 } /* namespace o2::DataDistribution */
 
-#endif /* ALICEO2_STFBUILDER_DEVICE_H_ */
+#endif /* ALICEO2_TF_BUILDER_DEVICE_H_ */

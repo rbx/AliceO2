@@ -8,7 +8,7 @@
 // granted to it by virtue of its status as an Intergovernmental Organization
 // or submit itself to any jurisdiction.
 
-#include "SubTimeFrameSender/SubTimeFrameSenderDevice.h"
+#include "TimeFrameBuilder/TimeFrameBuilderDevice.h"
 #include <options/FairMQProgOptions.h>
 
 #include "runFairMQDevice.h"
@@ -19,23 +19,18 @@ void addCustomOptions(bpo::options_description& options)
 {
   options.add_options()
   (
-    o2::DataDistribution::StfSenderDevice::OptionKeyInputChannelName,
+    o2::DataDistribution::TfBuilderDevice::OptionKeyInputChannelName,
     bpo::value<std::string>()->default_value("stf-input-channel"),
-    "Name of the input STF channel"
+    "Name of the stf channel (input)"
   )
   (
-    o2::DataDistribution::StfSenderDevice::OptionKeyOutputChannelName,
-    bpo::value<std::string>()->default_value("stf-output-channel"),
-    "Name of the output STF channel"
-  )
-  (
-    o2::DataDistribution::StfSenderDevice::OptionKeyEpnNodeCount,
+    o2::DataDistribution::TfBuilderDevice::OptionKeyFlpNodeCount,
     bpo::value<std::uint32_t>()->default_value(std::uint32_t(0)),
-    "Number of EPN nodes"
+    "Number of FLP nodes"
   );
 }
 
 FairMQDevicePtr getDevice(const FairMQProgOptions& /*config*/)
 {
-  return new o2::DataDistribution::StfSenderDevice();
+  return new o2::DataDistribution::TfBuilderDevice();
 }

@@ -21,7 +21,9 @@
 namespace o2 {
 namespace DataDistribution {
 
-StfSenderDevice::StfSenderDevice() : O2Device{}
+StfSenderDevice::StfSenderDevice()
+: O2Device{},
+  mOutputHandler(*this)
 {
 }
 
@@ -32,37 +34,57 @@ StfSenderDevice::~StfSenderDevice()
 void StfSenderDevice::InitTask()
 {
   mInputChannelName = GetConfig()->GetValue<std::string>(OptionKeyInputChannelName);
+  mOutputChannelName = GetConfig()->GetValue<std::string>(OptionKeyOutputChannelName);
+  mEpnNodeCount = GetConfig()->GetValue<std::uint32_t>(OptionKeyEpnNodeCount);
+}
+
+void StfSenderDevice::PreRun()
+{
+  // Start output handler
+  mOutputHandler.Start(mEpnNodeCount);
+}
+
+void StfSenderDevice::PostRun()
+{
+  // Start output handler
+  mOutputHandler.Stop();
+
+  LOG(INFO) << "PostRun done... ";
 }
 
 bool StfSenderDevice::ConditionalRun()
 {
+
+  auto &lInputChan = GetChannel(mInputChannelName, 0);
+
   static auto sStartTime = std::chrono::high_resolution_clock::now();
   SubTimeFrame lStf;
 
 #if STF_SERIALIZATION == 1
-  InterleavedHdrDataDeserializer lStfReceiver(*this, mInputChannelName, 0);
-  if (!lStfReceiver.deserialize(lStf)) {
-    LOG(WARN) << "Error while receiving of a STF. Exiting...";
-    return false;
-  }
+  InterleavedHdrDataDeserializer lStfReceiver(lInputChan);
 #elif STF_SERIALIZATION == 2
-  HdrDataDeserializer lStfReceiver(*this, mInputChannelName, 0);
-  if (!lStfReceiver.deserialize(lStf)) {
-    LOG(WARN) << "Error while receiving of a STF. Exiting...";
-    return false;
-  }
+  HdrDataDeserializer lStfReceiver(lInputChan);
 #else
 #error "Unknown STF_SERIALIZATION type"
 #endif
 
-  // Do something with the STF
+  if (!lStfReceiver.deserialize(lStf)) {
+    LOG(WARN) << "Error while receiving of a STF. Exiting...";
+    return false;
+  }
 
-  // Stf Readout messages will be returned when lStf goes of the scope!
-  {
-    // is there a ratelimited LOG?
+
+  { // is there a rate-limited LOG?
     static unsigned long floodgate = 0;
     if (++floodgate % 100 == 1)
       LOG(DEBUG) << "TF[" << lStf.Header().mId << "] size: " << lStf.getDataSize();
+  }
+
+  // Send STF to one of the EPNs (round-robin on STF ID)
+  if (mEpnNodeCount > 0) {
+    const auto lTargetEpn = lStf.Header().mId % mEpnNodeCount;
+
+    mOutputHandler.PushStf(lTargetEpn , std::move(lStf));
   }
 
   return true;

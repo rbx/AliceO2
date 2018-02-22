@@ -118,5 +118,29 @@ std::uint64_t SubTimeFrame::getDataSize() const
   return lDataSize;
 }
 
+SubTimeFrame& SubTimeFrame::operator+=(SubTimeFrame&& pStf)
+{
+  assert(pStf.Header().mId == Header().mId);
+
+  // iterate over all incoming HBFrame data sources
+
+  for (auto &lEquipHBFrame : pStf.mReadoutData) {
+    const EquipmentIdentifier &lEquipId = lEquipHBFrame.first;
+
+    // equipment must not repeat
+    if (mReadoutData.count(lEquipId) != 0) {
+      LOG(ERROR) << "Equipment already present" << lEquipId.info();
+      throw std::invalid_argument("Cannot add Equipment: already present!");
+    }
+    // mReadoutData[lEquipId] = std::move(lEquipHBFrame.second);
+    mReadoutData.insert(std::make_pair(lEquipId, std::move(lEquipHBFrame.second)));
+  }
+
+  // update the count
+  mHeader->payloadSize = mReadoutData.size();
+
+  return *this;
+}
+
 }
 } /* o2::DataDistribution */

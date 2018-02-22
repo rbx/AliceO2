@@ -36,7 +36,7 @@ private:
   /// Main SubTimeBuilder O2 device
   StfBuilderDevice &mDevice;
 
-  /// Map for threads (per input channel index)
+  /// Threads for input channels
   std::vector<std::thread> mInputThreads;
 };
 

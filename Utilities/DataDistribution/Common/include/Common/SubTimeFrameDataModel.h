@@ -43,6 +43,12 @@ struct EquipmentIdentifier
     else
       return false;
   }
+
+  const std::string info() const {
+    return std::string("DataDescription: ") + std::string(mDataDescription.str) +
+          std::string(" DataOrigin: ") + std::string(mDataOrigin.str) +
+          std::string(" SubSpecification: ") + std::to_string(mSubSpecification);
+  }
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -91,8 +97,11 @@ private:
 ////////////////////////////////////////////////////////////////////////////////
 /// SubTimeFrame
 ////////////////////////////////////////////////////////////////////////////////
+using TimeFrameIdType = std::uint64_t;
+using SubTimeFrameIdType = TimeFrameIdType;
+
 struct SubTimeFrameHeader : public DataHeader {
-  std::uint64_t mId;
+  TimeFrameIdType mId;
   std::uint32_t mMaxHBFrames;
 };
 
@@ -108,6 +117,9 @@ public:
   // default move
   SubTimeFrame(SubTimeFrame&& a) = default;
   SubTimeFrame& operator=(SubTimeFrame&& a) = default;
+
+  // adopt all data from a
+  SubTimeFrame& operator+=(SubTimeFrame&& a);
 
   void accept(ISubTimeFrameVisitor& v) override { v.visit(*this); };
 

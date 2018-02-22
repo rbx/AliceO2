@@ -35,7 +35,7 @@
             },
 
             {
-                "id": "builder",
+                "id": "stf_builder",
                 "channels": [
                     {
                         "name": "readout",
@@ -68,7 +68,7 @@
             },
 
             {
-                "id": "sender",
+                "id": "stf_sender",
                 "channels": [
                     {
                         "name": "stf-input-channel",
@@ -94,11 +94,67 @@
                                 "type": "pair",
                                 "method": "bind",
                                 "address": "tcp://*:23001"
+                            },
+                            {
+                                "type": "pair",
+                                "method": "bind",
+                                "address": "tcp://*:23002"
+                            }
+                        ]
+                    }
+                ]
+            },
+
+            {
+                "id": "tf_builder-0",
+                "channels": [
+                    {
+                        "name": "stf-input-channel",
+                        "transport": "zeromq",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "connect",
+                                "address": "tcp://localhost:23000"
+                            }
+                        ]
+                    }
+                ]
+            },
+
+            {
+                "id": "tf_builder-1",
+                "channels": [
+                    {
+                        "name": "stf-input-channel",
+                        "transport": "zeromq",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "connect",
+                                "address": "tcp://localhost:23001"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "id": "tf_builder-2",
+                "channels": [
+                    {
+                        "name": "stf-input-channel",
+                        "transport": "zeromq",
+                        "sockets": [
+                            {
+                                "type": "pair",
+                                "method": "connect",
+                                "address": "tcp://localhost:23002"
                             }
                         ]
                     }
                 ]
             }
+
         ]
     }
 }

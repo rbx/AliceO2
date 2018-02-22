@@ -11,11 +11,11 @@
 #ifndef ALICEO2_STF_SENDER_DEVICE_H_
 #define ALICEO2_STF_SENDER_DEVICE_H_
 
-#include "Common/SubTimeFrameDataModel.h"
-
 #include "O2Device/O2Device.h"
+#include "SubTimeFrameSender/SubTimeFrameSenderOutput.h"
 
-#include <deque>
+#include <thread>
+#include <vector>
 #include <mutex>
 #include <condition_variable>
 
@@ -25,7 +25,8 @@ namespace DataDistribution {
 class StfSenderDevice : public Base::O2Device {
 public:
   static constexpr const char* OptionKeyInputChannelName = "input-channel-name";
-  static constexpr const char* OptionKeyFreeShmChannelName = "free-shm-channel-name";
+  static constexpr const char* OptionKeyOutputChannelName = "output-channel-name";
+  static constexpr const char* OptionKeyEpnNodeCount = "epn-count";
 
   /// Default constructor
   StfSenderDevice();
@@ -35,11 +36,23 @@ public:
 
   void InitTask() final;
 
+
+  const std::string& getOutputChannelName() const { return mOutputChannelName; }
+
 protected:
+  void PreRun() final;
+  void PostRun() final;
   bool ConditionalRun() final;
 
+  /// Configuration
   std::string mInputChannelName;
+  std::string mOutputChannelName;
+  std::uint32_t mEpnNodeCount;
+
+  /// Output stage handler
+  StfSenderOutputInterface mOutputHandler;
 };
+
 }
 } /* namespace o2::DataDistribution */
 

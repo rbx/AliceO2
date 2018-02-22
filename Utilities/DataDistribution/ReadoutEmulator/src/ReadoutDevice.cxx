@@ -48,7 +48,7 @@ void ReadoutDevice::InitTask()
   mCruLinkCount = GetConfig()->GetValue<std::size_t>(OptionKeyCruLinkCount);
   mCruLinkBitsPerS = GetConfig()->GetValue<std::size_t>(OptionKeyCruLinkBitsPerS);
 
-  ChannelAllocator::get().addChannel(gHbfOutputChanId, this, mOutChannelName, 0);
+  ChannelAllocator::get().addChannel(gHbfOutputChanId, GetChannel(mOutChannelName, 0));
 
   if (mSuperpageSize < (1ULL << 19)) {
     LOG(WARN) << "Superpage size too low (" << mSuperpageSize << " Setting to 512kiB...";
@@ -108,7 +108,6 @@ bool ReadoutDevice::ConditionalRun()
   auto isStfFinished =
     (std::chrono::high_resolution_clock::now() - cDataTakingStart) - (lNumberSentStfs * cStfInterval) > cStfInterval;
 
-  // Channel multiplexer: Send a header with info to start a new STF
   if (isStfFinished)
     lNumberSentStfs += 1;
 
@@ -168,6 +167,8 @@ void ReadoutDevice::GuiThread()
     using namespace std::chrono_literals;
     std::this_thread::sleep_for(5s);
   }
+  LOG(INFO) << "Exiting GUI thread...";
 }
+
 }
 } /* namespace o2::DataDistribution */
